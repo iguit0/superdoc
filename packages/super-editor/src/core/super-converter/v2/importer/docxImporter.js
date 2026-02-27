@@ -32,6 +32,7 @@ import { ensureNumberingCache } from './numberingCache.js';
 import { commentRangeStartHandlerEntity, commentRangeEndHandlerEntity } from './commentRangeImporter.js';
 import { permStartHandlerEntity } from './permStartImporter.js';
 import { permEndHandlerEntity } from './permEndImporter.js';
+import { normalizeDuplicateBlockIdentitiesInContent } from './normalizeDuplicateBlockIdentitiesInContent.js';
 import bookmarkStartAttrConfigs from '@converter/v3/handlers/w/bookmark-start/attributes/index.js';
 import bookmarkEndAttrConfigs from '@converter/v3/handlers/w/bookmark-end/attributes/index.js';
 import { translator as wStylesTranslator } from '@converter/v3/handlers/w/styles/index.js';
@@ -169,6 +170,7 @@ export const createDocumentJson = (docx, converter, editor) => {
     parsedContent = filterOutRootInlineNodes(parsedContent);
     parsedContent = normalizeTableBookmarksInContent(parsedContent, editor);
     collapseWhitespaceNextToInlinePassthrough(parsedContent);
+    parsedContent = normalizeDuplicateBlockIdentitiesInContent(parsedContent);
 
     const result = {
       type: 'doc',
@@ -688,6 +690,7 @@ const importHeadersFooters = (docx, converter, mainEditor, numbering, translated
 
     // Safety: drop inline-only nodes at the root of header docs
     schema = filterOutRootInlineNodes(schema);
+    schema = normalizeDuplicateBlockIdentitiesInContent(schema);
 
     if (!converter.headerIds.ids) converter.headerIds.ids = [];
     converter.headerIds.ids.push(rId);
@@ -727,6 +730,7 @@ const importHeadersFooters = (docx, converter, mainEditor, numbering, translated
 
     // Safety: drop inline-only nodes at the root of footer docs
     schema = filterOutRootInlineNodes(schema);
+    schema = normalizeDuplicateBlockIdentitiesInContent(schema);
 
     if (!converter.footerIds.ids) converter.footerIds.ids = [];
     converter.footerIds.ids.push(rId);
