@@ -39,6 +39,7 @@ import { translator as wStylesTranslator } from '@converter/v3/handlers/w/styles
 import { translator as wNumberingTranslator } from '@converter/v3/handlers/w/numbering/index.js';
 import { baseNumbering } from '@converter/v2/exporter/helpers/base-list.definitions.js';
 import { patchNumberingDefinitions } from './patchNumberingDefinitions.js';
+import { startCollection, drainDiagnostics } from '@converter/v3/handlers/import-diagnostics.js';
 
 /**
  * @typedef {import()} XmlNode
@@ -152,6 +153,7 @@ export const createDocumentJson = (docx, converter, editor) => {
     const translatedLinkedStyles = translateStyleDefinitions(docx);
     const translatedNumbering = translateNumberingDefinitions(docx);
 
+    const importDiagnosticsCollectionId = startCollection();
     let parsedContent = nodeListHandler.handler({
       nodes: content,
       nodeListHandler,
@@ -164,7 +166,9 @@ export const createDocumentJson = (docx, converter, editor) => {
       inlineDocumentFonts,
       lists,
       path: [],
+      extraParams: { importDiagnosticsCollectionId },
     });
+    const importDiagnostics = drainDiagnostics(importDiagnosticsCollectionId);
 
     // Safety: drop any inline-only nodes that accidentally landed at the doc root
     parsedContent = filterOutRootInlineNodes(parsedContent);
@@ -202,6 +206,7 @@ export const createDocumentJson = (docx, converter, editor) => {
       numbering: getNumberingDefinitions(docx, converter),
       translatedNumbering,
       themeColors: getThemeColorPalette(docx),
+      importDiagnostics,
     };
   }
   return null;
