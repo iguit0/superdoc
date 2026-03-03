@@ -1707,7 +1707,7 @@ async function main() {
 
   // ---- Widespread diff detection ----
   const totalChangedDocs = pendingReports.length;
-  const widespreadThreshold = Math.max(1, Math.floor(totalChangedDocs * 0.5));
+  const widespreadThreshold = Math.max(1, Math.ceil(totalChangedDocs * 0.5));
   /** @type {Array<{ path: string, kind: string, docCount: number }>} */
   const widespreadDiffs = [];
   const widespreadPathKeys = new Set();
@@ -1731,8 +1731,10 @@ async function main() {
       d.widespread = widespreadPathKeys.has(key);
     }
 
-    // Flag page count changes
-    const pageCountChanged = docReport.pageCount.candidate !== docReport.pageCount.reference;
+    // Flag page count changes (parse-error reports have no pageCount)
+    const pageCountChanged = docReport.pageCount
+      ? docReport.pageCount.candidate !== docReport.pageCount.reference
+      : false;
     if (pageCountChanged) docReport.pageCountChanged = true;
 
     // Write report
