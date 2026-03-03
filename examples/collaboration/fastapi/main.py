@@ -7,7 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from superdoc import AsyncSuperDocClient
 
 EXAMPLE_ROOT = Path(__file__).resolve().parent
@@ -90,6 +90,19 @@ async def status() -> dict:
 @app.get("/insert")
 async def insert(text: str = Query(...)) -> dict:
     return await app.state.client.doc.insert({"value": text})
+
+
+@app.get("/markdown")
+async def markdown() -> HTMLResponse:
+    result = await app.state.client.doc.get_markdown({})
+    md = result.get("markdown", "")
+    escaped = md.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    html = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Document Markdown</title>
+<style>body{{font-family:system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem}}
+pre{{background:#f5f5f5;padding:1rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word}}</style>
+</head><body><h1>Document as Markdown</h1><pre>{escaped}</pre></body></html>"""
+    return HTMLResponse(content=html)
 
 
 @app.get("/download")

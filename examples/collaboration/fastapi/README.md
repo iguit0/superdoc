@@ -87,4 +87,5 @@ curl "http://127.0.0.1:8000/insert?text=hello%20world"
 - `GET /` returns open result + collab config.
 - `GET /status` returns current document/session status.
 - `GET /insert?text=...` inserts text into the live collaborative doc.
+- `GET /markdown` extracts the document content as Markdown and renders it in the browser.
 - `GET /download` exports the current session as `.docx` and downloads it.
