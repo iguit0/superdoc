@@ -1,3 +1,4 @@
+import { v5 as uuidv5 } from 'uuid';
 import { emuToPixels, rotToDegrees, polygonToObj } from '@converter/helpers.js';
 import { carbonCopy } from '@core/utilities/carbonCopy.js';
 import {
@@ -17,10 +18,18 @@ import {
   extractParagraphAlignment,
   extractBodyPrProperties,
 } from './textbox-content-helpers.js';
+import { parseRelativeHeight } from './relative-height.js';
 
 const DRAWING_XML_TAG = 'w:drawing';
 const SHAPE_URI = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape';
 const GROUP_URI = 'http://schemas.microsoft.com/office/word/2010/wordprocessingGroup';
+
+/**
+ * Namespace UUID for generating deterministic sdImageId values.
+ * Images imported from DOCX derive their sdImageId from rEmbed + document-part
+ * filename so the same image always receives the same ID across open cycles.
+ */
+const SD_IMAGE_ID_NAMESPACE = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
 /**
  * Normalize a relationship target to a relative media path.
@@ -429,7 +438,19 @@ export function handleImageNode(node, params, isAnchor) {
   // which is not what we want for placeholder images that should maintain their original layout.
   const wrapValue = wrap;
 
+  // Extract relativeHeight from anchor attributes for first-class z-order support.
+  // We only accept OOXML-conformant unsignedInt values.
+  const relativeHeight = isAnchor ? parseRelativeHeight(attributes['relativeHeight']) : null;
+
+  // Derive a deterministic sdImageId from the drawing's docPr id, the rEmbed,
+  // and the document-part filename so the same image always receives the same
+  // stable ID across multiple opens of the same DOCX.
+  const docPrId = docPr?.attributes?.id ?? '';
+  const sdImageId = uuidv5(`${currentFile}:${rEmbed}:${docPrId}`, SD_IMAGE_ID_NAMESPACE);
+
   const nodeAttrs = {
+    sdImageId,
+    relativeHeight,
     // originalXml: carbonCopy(node),
     src: finalSrc,
     alt:
