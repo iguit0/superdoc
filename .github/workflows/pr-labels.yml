@@ -104,18 +104,19 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const prNumber = context.issue.number;
+            const login = context.payload.pull_request.user.login;
 
-            // Use app token (has org-read scope) so author_association
-            // correctly returns MEMBER for org members.
-            const { data: pr } = await github.rest.pulls.get({
+            // Check repo permission (more reliable than author_association
+            // which depends on token scope for org membership visibility).
+            const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
               owner,
               repo,
-              pull_number: prNumber,
+              username: login,
             });
 
-            const assoc = pr.author_association;
-            if (assoc === 'MEMBER' || assoc === 'OWNER' || assoc === 'COLLABORATOR') {
-              core.info(`Skipping community label — author is ${assoc}`);
+            const level = perm.permission;
+            if (level === 'admin' || level === 'maintain' || level === 'write') {
+              core.info(`Skipping community label — ${login} has ${level} access`);
               return;
             }
 
