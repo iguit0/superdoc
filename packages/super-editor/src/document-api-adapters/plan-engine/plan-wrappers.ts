@@ -56,6 +56,20 @@ function editorHasDom(editor: Editor): boolean {
   return !!(opts?.document ?? opts?.mockDocument ?? (typeof document !== 'undefined' ? document : null));
 }
 
+/**
+ * Mutate `jsonNodes` in place so that consecutive table nodes within the
+ * array are separated by an empty paragraph. Only handles within-fragment
+ * adjacency — document-context separators (leading/trailing) are handled
+ * by the caller after inspecting the insertion position.
+ */
+function ensureTableSeparators(jsonNodes: Record<string, unknown>[]): void {
+  for (let i = jsonNodes.length - 2; i >= 0; i--) {
+    if (jsonNodes[i].type === 'table' && jsonNodes[i + 1].type === 'table') {
+      jsonNodes.splice(i + 1, 0, { type: 'paragraph' });
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Locator normalization (same validation as the old adapters)
 // ---------------------------------------------------------------------------
@@ -640,6 +654,33 @@ export function insertStructuredWrapper(
         // because createNodeFromContent treats it as a single JSON object.
         const jsonNodes: Record<string, unknown>[] = [];
         fragment.forEach((node) => jsonNodes.push(node.toJSON()));
+
+        // Word always separates adjacent tables with a paragraph. Without a
+        // trailing separator, consecutive markdown inserts produce adjacent
+        // <w:tbl> elements that Word merges into one visual table.
+        ensureTableSeparators(jsonNodes);
+
+        // insertContentAt replaces empty textblocks when inserting block
+        // content. Check whether the replaced paragraph's neighbors are tables
+        // and add separators to prevent adjacency in the result.
+        if (from === to) {
+          const $pos = editor.state.doc.resolve(from);
+          const parent = $pos.parent;
+          if (parent.isTextblock && !parent.childCount) {
+            const grandparent = $pos.node($pos.depth - 1);
+            const idx = $pos.index($pos.depth - 1);
+            const prevIsTable = idx > 0 && grandparent.child(idx - 1).type.name === 'table';
+            const nextIsTable = idx + 1 < grandparent.childCount && grandparent.child(idx + 1).type.name === 'table';
+            const atEnd = idx + 1 >= grandparent.childCount;
+
+            if (jsonNodes[0]?.type === 'table' && prevIsTable) {
+              jsonNodes.unshift({ type: 'paragraph' });
+            }
+            if (jsonNodes[jsonNodes.length - 1]?.type === 'table' && (nextIsTable || atEnd)) {
+              jsonNodes.push({ type: 'paragraph' });
+            }
+          }
+        }
 
         const ok = Boolean(editor.commands.insertContentAt({ from, to }, jsonNodes));
         if (!ok) {
