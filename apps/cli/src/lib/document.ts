@@ -11,9 +11,11 @@ import type { CollaborationProfile } from './collaboration';
 import { createCollaborationRuntime } from './collaboration';
 import {
   DEFAULT_BOOTSTRAP_SETTLING_MS,
+  waitForContentSettling,
   detectRoomState,
   resolveBootstrapDecision,
   claimBootstrap,
+  clearBootstrapMarker,
   writeBootstrapMarker,
   detectBootstrapRace,
   type RoomState,
@@ -251,6 +253,11 @@ export async function openCollaborativeDocument(
   try {
     await runtime.waitForSync();
 
+    // SD-2138: Some providers fire "synced" before Yjs updates are fully
+    // applied to local shared types. Give a brief window for the XmlFragment
+    // to be populated from incoming server state before checking room state.
+    await waitForContentSettling(runtime.ydoc);
+
     const onMissing = profile.onMissing ?? 'seedFromDoc';
     let finalRoomState = detectRoomState(runtime.ydoc);
     let decision = resolveBootstrapDecision(finalRoomState, onMissing, doc != null);
@@ -264,6 +271,18 @@ export async function openCollaborativeDocument(
         // here would produce a dual-seed race.
         finalRoomState = detectRoomState(runtime.ydoc);
         decision = { action: 'join' };
+      } else {
+        // SD-2138: Re-check room state after the claim settling period.
+        // Some providers fire "synced" before Yjs updates are fully applied,
+        // so content from the server may have arrived during the settling
+        // wait.  If the room is now populated, join instead of seeding —
+        // seeding here would destructively overwrite existing content.
+        const postClaimState = detectRoomState(runtime.ydoc);
+        if (postClaimState === 'populated') {
+          clearBootstrapMarker(runtime.ydoc);
+          finalRoomState = postClaimState;
+          decision = { action: 'join' };
+        }
       }
     }
 
