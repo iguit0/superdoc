@@ -445,6 +445,70 @@ The SDKs expose all operations from the [Document API](/document-api/overview) p
 | `doc.contentControls.repeatingSection.setAllowInsertDelete` | `content-controls repeating-section set-allow-insert-delete` | Set the allowInsertDelete flag on a repeating section. |
 | `doc.contentControls.group.wrap` | `content-controls group wrap` | Wrap a content control inside a new group content control. Always nests; not idempotent. |
 | `doc.contentControls.group.ungroup` | `content-controls group ungroup` | Remove the group designation from a group content control. |
+| `doc.bookmarks.list` | `bookmarks list` | List all bookmarks in the document. |
+| `doc.bookmarks.get` | `bookmarks get` | Get detailed information about a specific bookmark. |
+| `doc.bookmarks.insert` | `bookmarks insert` | Insert a new named bookmark at a target location. |
+| `doc.bookmarks.rename` | `bookmarks rename` | Rename an existing bookmark. |
+| `doc.bookmarks.remove` | `bookmarks remove` | Remove a bookmark from the document. |
+| `doc.footnotes.list` | `footnotes list` | List all footnotes and endnotes in the document. |
+| `doc.footnotes.get` | `footnotes get` | Get detailed information about a specific footnote or endnote. |
+| `doc.footnotes.insert` | `footnotes insert` | Insert a new footnote or endnote at a target location. |
+| `doc.footnotes.update` | `footnotes update` | Update the content of an existing footnote or endnote. |
+| `doc.footnotes.remove` | `footnotes remove` | Remove a footnote or endnote from the document. |
+| `doc.footnotes.configure` | `footnotes configure` | Configure numbering and placement for footnotes or endnotes. |
+| `doc.crossRefs.list` | `cross-refs list` | List all cross-reference fields in the document. |
+| `doc.crossRefs.get` | `cross-refs get` | Get detailed information about a specific cross-reference field. |
+| `doc.crossRefs.insert` | `cross-refs insert` | Insert a new cross-reference field at a target location. |
+| `doc.crossRefs.rebuild` | `cross-refs rebuild` | Rebuild (recalculate) a cross-reference field. |
+| `doc.crossRefs.remove` | `cross-refs remove` | Remove a cross-reference field from the document. |
+| `doc.index.list` | `index list` | List all index blocks in the document. |
+| `doc.index.get` | `index get` | Get detailed information about a specific index block. |
+| `doc.index.insert` | `index insert` | Insert a new index block at a target location. |
+| `doc.index.configure` | `index configure` | Update the configuration of an existing index block. |
+| `doc.index.rebuild` | `index rebuild` | Rebuild (regenerate) an index block from its entries. |
+| `doc.index.remove` | `index remove` | Remove an index block from the document. |
+| `doc.index.entries.list` | `index entries list` | List all XE (index entry) fields in the document. |
+| `doc.index.entries.get` | `index entries get` | Get detailed information about a specific XE index entry. |
+| `doc.index.entries.insert` | `index entries insert` | Insert a new XE index entry field at a target location. |
+| `doc.index.entries.update` | `index entries update` | Update the properties of an existing XE index entry. |
+| `doc.index.entries.remove` | `index entries remove` | Remove an XE index entry field from the document. |
+| `doc.captions.list` | `captions list` | List all caption paragraphs in the document. |
+| `doc.captions.get` | `captions get` | Get detailed information about a specific caption paragraph. |
+| `doc.captions.insert` | `captions insert` | Insert a new caption paragraph adjacent to a target block. |
+| `doc.captions.update` | `captions update` | Update the text of an existing caption paragraph. |
+| `doc.captions.remove` | `captions remove` | Remove a caption paragraph from the document. |
+| `doc.captions.configure` | `captions configure` | Configure numbering format for a caption label. |
+| `doc.fields.list` | `fields list` | List all fields in the document. |
+| `doc.fields.get` | `fields get` | Get detailed information about a specific field. |
+| `doc.fields.insert` | `fields insert` | Insert a raw field code at a target location. |
+| `doc.fields.rebuild` | `fields rebuild` | Rebuild (recalculate) a field. |
+| `doc.fields.remove` | `fields remove` | Remove a field from the document. |
+| `doc.citations.list` | `citations list` | List all citation marks in the document. |
+| `doc.citations.get` | `citations get` | Get detailed information about a specific citation mark. |
+| `doc.citations.insert` | `citations insert` | Insert a new citation mark at a target location. |
+| `doc.citations.update` | `citations update` | Update an existing citation mark's source references. |
+| `doc.citations.remove` | `citations remove` | Remove a citation mark from the document. |
+| `doc.citations.sources.list` | `citations sources list` | List all citation sources in the document store. |
+| `doc.citations.sources.get` | `citations sources get` | Get detailed information about a specific citation source. |
+| `doc.citations.sources.insert` | `citations sources insert` | Register a new citation source in the document store. |
+| `doc.citations.sources.update` | `citations sources update` | Update the fields of an existing citation source. |
+| `doc.citations.sources.remove` | `citations sources remove` | Remove a citation source from the document store. |
+| `doc.citations.bibliography.get` | `citations bibliography get` | Get information about the bibliography block. |
+| `doc.citations.bibliography.insert` | `citations bibliography insert` | Insert a bibliography block at a target location. |
+| `doc.citations.bibliography.rebuild` | `citations bibliography rebuild` | Rebuild the bibliography from current sources. |
+| `doc.citations.bibliography.configure` | `citations bibliography configure` | Configure the bibliography style. |
+| `doc.citations.bibliography.remove` | `citations bibliography remove` | Remove the bibliography block from the document. |
+| `doc.authorities.list` | `authorities list` | List all table-of-authorities blocks in the document. |
+| `doc.authorities.get` | `authorities get` | Get detailed information about a specific table-of-authorities block. |
+| `doc.authorities.insert` | `authorities insert` | Insert a new table-of-authorities block at a target location. |
+| `doc.authorities.configure` | `authorities configure` | Update the configuration of an existing table-of-authorities block. |
+| `doc.authorities.rebuild` | `authorities rebuild` | Rebuild a table-of-authorities block from its entries. |
+| `doc.authorities.remove` | `authorities remove` | Remove a table-of-authorities block from the document. |
+| `doc.authorities.entries.list` | `authorities entries list` | List all TA (authority entry) fields in the document. |
+| `doc.authorities.entries.get` | `authorities entries get` | Get detailed information about a specific TA authority entry. |
+| `doc.authorities.entries.insert` | `authorities entries insert` | Insert a new TA authority entry field at a target location. |
+| `doc.authorities.entries.update` | `authorities entries update` | Update the properties of an existing TA authority entry. |
+| `doc.authorities.entries.remove` | `authorities entries remove` | Remove a TA authority entry field from the document. |
 
 #### Format
 
@@ -804,6 +868,70 @@ The SDKs expose all operations from the [Document API](/document-api/overview) p
 | `doc.content_controls.repeating_section.set_allow_insert_delete` | `content-controls repeating-section set-allow-insert-delete` | Set the allowInsertDelete flag on a repeating section. |
 | `doc.content_controls.group.wrap` | `content-controls group wrap` | Wrap a content control inside a new group content control. Always nests; not idempotent. |
 | `doc.content_controls.group.ungroup` | `content-controls group ungroup` | Remove the group designation from a group content control. |
+| `doc.bookmarks.list` | `bookmarks list` | List all bookmarks in the document. |
+| `doc.bookmarks.get` | `bookmarks get` | Get detailed information about a specific bookmark. |
+| `doc.bookmarks.insert` | `bookmarks insert` | Insert a new named bookmark at a target location. |
+| `doc.bookmarks.rename` | `bookmarks rename` | Rename an existing bookmark. |
+| `doc.bookmarks.remove` | `bookmarks remove` | Remove a bookmark from the document. |
+| `doc.footnotes.list` | `footnotes list` | List all footnotes and endnotes in the document. |
+| `doc.footnotes.get` | `footnotes get` | Get detailed information about a specific footnote or endnote. |
+| `doc.footnotes.insert` | `footnotes insert` | Insert a new footnote or endnote at a target location. |
+| `doc.footnotes.update` | `footnotes update` | Update the content of an existing footnote or endnote. |
+| `doc.footnotes.remove` | `footnotes remove` | Remove a footnote or endnote from the document. |
+| `doc.footnotes.configure` | `footnotes configure` | Configure numbering and placement for footnotes or endnotes. |
+| `doc.cross_refs.list` | `cross-refs list` | List all cross-reference fields in the document. |
+| `doc.cross_refs.get` | `cross-refs get` | Get detailed information about a specific cross-reference field. |
+| `doc.cross_refs.insert` | `cross-refs insert` | Insert a new cross-reference field at a target location. |
+| `doc.cross_refs.rebuild` | `cross-refs rebuild` | Rebuild (recalculate) a cross-reference field. |
+| `doc.cross_refs.remove` | `cross-refs remove` | Remove a cross-reference field from the document. |
+| `doc.index.list` | `index list` | List all index blocks in the document. |
+| `doc.index.get` | `index get` | Get detailed information about a specific index block. |
+| `doc.index.insert` | `index insert` | Insert a new index block at a target location. |
+| `doc.index.configure` | `index configure` | Update the configuration of an existing index block. |
+| `doc.index.rebuild` | `index rebuild` | Rebuild (regenerate) an index block from its entries. |
+| `doc.index.remove` | `index remove` | Remove an index block from the document. |
+| `doc.index.entries.list` | `index entries list` | List all XE (index entry) fields in the document. |
+| `doc.index.entries.get` | `index entries get` | Get detailed information about a specific XE index entry. |
+| `doc.index.entries.insert` | `index entries insert` | Insert a new XE index entry field at a target location. |
+| `doc.index.entries.update` | `index entries update` | Update the properties of an existing XE index entry. |
+| `doc.index.entries.remove` | `index entries remove` | Remove an XE index entry field from the document. |
+| `doc.captions.list` | `captions list` | List all caption paragraphs in the document. |
+| `doc.captions.get` | `captions get` | Get detailed information about a specific caption paragraph. |
+| `doc.captions.insert` | `captions insert` | Insert a new caption paragraph adjacent to a target block. |
+| `doc.captions.update` | `captions update` | Update the text of an existing caption paragraph. |
+| `doc.captions.remove` | `captions remove` | Remove a caption paragraph from the document. |
+| `doc.captions.configure` | `captions configure` | Configure numbering format for a caption label. |
+| `doc.fields.list` | `fields list` | List all fields in the document. |
+| `doc.fields.get` | `fields get` | Get detailed information about a specific field. |
+| `doc.fields.insert` | `fields insert` | Insert a raw field code at a target location. |
+| `doc.fields.rebuild` | `fields rebuild` | Rebuild (recalculate) a field. |
+| `doc.fields.remove` | `fields remove` | Remove a field from the document. |
+| `doc.citations.list` | `citations list` | List all citation marks in the document. |
+| `doc.citations.get` | `citations get` | Get detailed information about a specific citation mark. |
+| `doc.citations.insert` | `citations insert` | Insert a new citation mark at a target location. |
+| `doc.citations.update` | `citations update` | Update an existing citation mark's source references. |
+| `doc.citations.remove` | `citations remove` | Remove a citation mark from the document. |
+| `doc.citations.sources.list` | `citations sources list` | List all citation sources in the document store. |
+| `doc.citations.sources.get` | `citations sources get` | Get detailed information about a specific citation source. |
+| `doc.citations.sources.insert` | `citations sources insert` | Register a new citation source in the document store. |
+| `doc.citations.sources.update` | `citations sources update` | Update the fields of an existing citation source. |
+| `doc.citations.sources.remove` | `citations sources remove` | Remove a citation source from the document store. |
+| `doc.citations.bibliography.get` | `citations bibliography get` | Get information about the bibliography block. |
+| `doc.citations.bibliography.insert` | `citations bibliography insert` | Insert a bibliography block at a target location. |
+| `doc.citations.bibliography.rebuild` | `citations bibliography rebuild` | Rebuild the bibliography from current sources. |
+| `doc.citations.bibliography.configure` | `citations bibliography configure` | Configure the bibliography style. |
+| `doc.citations.bibliography.remove` | `citations bibliography remove` | Remove the bibliography block from the document. |
+| `doc.authorities.list` | `authorities list` | List all table-of-authorities blocks in the document. |
+| `doc.authorities.get` | `authorities get` | Get detailed information about a specific table-of-authorities block. |
+| `doc.authorities.insert` | `authorities insert` | Insert a new table-of-authorities block at a target location. |
+| `doc.authorities.configure` | `authorities configure` | Update the configuration of an existing table-of-authorities block. |
+| `doc.authorities.rebuild` | `authorities rebuild` | Rebuild a table-of-authorities block from its entries. |
+| `doc.authorities.remove` | `authorities remove` | Remove a table-of-authorities block from the document. |
+| `doc.authorities.entries.list` | `authorities entries list` | List all TA (authority entry) fields in the document. |
+| `doc.authorities.entries.get` | `authorities entries get` | Get detailed information about a specific TA authority entry. |
+| `doc.authorities.entries.insert` | `authorities entries insert` | Insert a new TA authority entry field at a target location. |
+| `doc.authorities.entries.update` | `authorities entries update` | Update the properties of an existing TA authority entry. |
+| `doc.authorities.entries.remove` | `authorities entries remove` | Remove a TA authority entry field from the document. |
 
 #### Format
 
