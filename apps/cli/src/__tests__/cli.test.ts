@@ -46,6 +46,16 @@ const TEST_DIR = join(import.meta.dir, 'fixtures-cli');
 const STATE_DIR = join(TEST_DIR, 'state');
 const SAMPLE_DOC = join(TEST_DIR, 'sample.docx');
 const LIST_SAMPLE_DOC = join(TEST_DIR, 'lists-sample.docx');
+const CLI_PACKAGE_JSON_PATH = join(import.meta.dir, '../../package.json');
+
+async function readCliPackageVersion(): Promise<string> {
+  const raw = await readFile(CLI_PACKAGE_JSON_PATH, 'utf8');
+  const parsed = JSON.parse(raw) as { version?: unknown };
+  if (typeof parsed.version !== 'string' || parsed.version.length === 0) {
+    throw new Error('Expected apps/cli/package.json to contain a non-empty version string.');
+  }
+  return parsed.version;
+}
 
 async function runCli(args: string[], stdinBytes?: Uint8Array): Promise<RunResult> {
   let stdout = '';
@@ -179,10 +189,13 @@ async function firstListItemAddress(args: string[]): Promise<ListItemAddress> {
 }
 
 describe('superdoc CLI', () => {
+  let cliPackageVersion = '';
+
   beforeAll(async () => {
     await mkdir(TEST_DIR, { recursive: true });
     await copyFile(await resolveSourceDocFixture(), SAMPLE_DOC);
     await copyFile(await resolveListDocFixture(), LIST_SAMPLE_DOC);
+    cliPackageVersion = await readCliPackageVersion();
   });
 
   beforeEach(async () => {
@@ -200,6 +213,33 @@ describe('superdoc CLI', () => {
     const envelope = parseJsonOutput<SuccessEnvelope<{ active: boolean }>>(result);
     expect(envelope.command).toBe('status');
     expect(envelope.data.active).toBe(false);
+  });
+
+  test('global --version prints installed CLI package version', async () => {
+    const result = await runCli(['--version']);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(cliPackageVersion);
+  });
+
+  test('global -v prints installed CLI package version', async () => {
+    const result = await runCli(['-v']);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(cliPackageVersion);
+  });
+
+  test('global --version takes precedence over command execution', async () => {
+    const result = await runCli(['status', '--version']);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(cliPackageVersion);
+  });
+
+  test('global --help takes precedence over --version', async () => {
+    const result = await runCli(['--help', '--version']);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('Usage: superdoc <command> [options]');
   });
 
   test('commands without <doc> require an active context', async () => {
