@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/superdoc-dev/superdoc/compare/v1.18.0...v1.18.1) (2026-03-10)
+
+
+### Bug Fixes
+
+* **export:** prevent DOCX corruption from UTF-16 XML parts and schema violations (SD-2170) ([#2349](https://github.com/superdoc-dev/superdoc/issues/2349)) ([f6dbb40](https://github.com/superdoc-dev/superdoc/commit/f6dbb404ad998e502a49df7e0ffded9f2a236321))
+
 # [1.18.0](https://github.com/superdoc-dev/superdoc/compare/v1.17.0...v1.18.0) (2026-03-05)
 
 
