@@ -757,6 +757,29 @@ const loadNewFileData = async () => {
   }
 };
 
+const waitForCollaborativeFragmentSettling = async (ydoc, maxWaitMs = 200) => {
+  const fragment = ydoc.getXmlFragment('supereditor');
+  if (fragment.length > 0) return fragment;
+
+  await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      fragment.unobserve?.(observer);
+      resolve();
+    }, maxWaitMs);
+
+    const observer = () => {
+      if (fragment.length <= 0) return;
+      clearTimeout(timeout);
+      fragment.unobserve?.(observer);
+      resolve();
+    };
+
+    fragment.observe?.(observer);
+  });
+
+  return fragment;
+};
+
 const initializeData = async () => {
   // If we have the file, initialize immediately from file
   if (props.fileSource) {
@@ -793,23 +816,41 @@ const initializeData = async () => {
 
     waitForSync().then(async () => {
       const partsMap = ydoc.getMap('parts');
-      const fragment = ydoc.getXmlFragment('supereditor');
       const metaMap = ydoc.getMap('meta');
+      const hasLegacyContent = metaMap.has('docx');
+      const fragment = hasLegacyContent
+        ? ydoc.getXmlFragment('supereditor')
+        : await waitForCollaborativeFragmentSettling(ydoc);
 
       // Three-way room classification:
       // 1. New-format room: has parts map entries or Y fragment content
       // 2. Legacy room: has meta.docx but no parts yet (migration pending)
       // 3. Empty room: first client, nothing in ydoc
       const hasPartsContent = fragment.length > 0 || partsMap.size > 0;
-      const hasLegacyContent = metaMap.has('docx');
 
       if (hasPartsContent || hasLegacyContent) {
         // Existing room — editor will hydrate from Y fragment + parts map
         // during bootstrap. Legacy rooms will be migrated in bootstrapPartSync.
+        props.options.isNewFile = false;
+
+        if (fragment.length > 0) {
+          props.options.fragment = fragment;
+          initEditor({});
+          return;
+        }
+
+        delete props.options.fragment;
+
+        if (hasLegacyContent) {
+          initEditor({ content: metaMap.get('docx') });
+          return;
+        }
+
         initEditor({});
       } else {
         // First client — load blank document
         props.options.isNewFile = true;
+        delete props.options.fragment;
         const fileData = await loadNewFileData();
         if (fileData) initEditor(fileData);
       }

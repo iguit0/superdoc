@@ -183,7 +183,7 @@ describe('SuperEditor.vue', () => {
 
     await flushPromises();
 
-    expect(ydoc.getMap).toHaveBeenCalledWith('meta');
+    expect(ydoc.getMap.mock.calls).toContainEqual(['meta']);
     expect(metaMap.has).toHaveBeenCalledWith('docx');
     expect(EditorConstructor).toHaveBeenCalledTimes(1);
     expect(EditorConstructor.loadXmlData).not.toHaveBeenCalled();
@@ -241,6 +241,174 @@ describe('SuperEditor.vue', () => {
     wrapper.unmount();
   });
 
+  it('waits for fragment settling and passes the shared fragment to the editor for existing rooms', async () => {
+    vi.useFakeTimers();
+
+    const metaMap = {
+      has: vi.fn(() => false),
+      get: vi.fn(() => undefined),
+    };
+    const partsMap = { size: 1 };
+    const fragment = {
+      length: 0,
+      observe: vi.fn((handler) => {
+        fragment._observer = handler;
+      }),
+      unobserve: vi.fn(),
+    };
+    const ydoc = {
+      getMap: vi.fn((name) => (name === 'parts' ? partsMap : metaMap)),
+      getXmlFragment: vi.fn(() => fragment),
+    };
+
+    const provider = {
+      listeners: {},
+      on: vi.fn((event, handler) => {
+        provider.listeners[event] = handler;
+      }),
+      off: vi.fn(),
+    };
+
+    const wrapper = mount(SuperEditor, {
+      props: {
+        documentId: 'doc-fragment-settling',
+        options: {
+          ydoc,
+          collaborationProvider: provider,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const syncedHandler = provider.on.mock.calls.find(([event]) => event === 'synced')[1];
+    syncedHandler();
+    await flushPromises();
+
+    expect(EditorConstructor).not.toHaveBeenCalled();
+    expect(fragment.observe).toHaveBeenCalledWith(expect.any(Function));
+
+    fragment.length = 1;
+    fragment._observer?.();
+    await flushPromises();
+
+    expect(EditorConstructor).toHaveBeenCalledTimes(1);
+    const options = EditorConstructor.mock.calls[0][0];
+    expect(options.fragment).toStrictEqual(fragment);
+    expect(options.isNewFile).toBe(false);
+
+    wrapper.unmount();
+    vi.useRealTimers();
+  });
+
+  it('initializes without fragment when parts exist but fragment never settles (timeout)', async () => {
+    vi.useFakeTimers();
+
+    const metaMap = {
+      has: vi.fn(() => false),
+      get: vi.fn(() => undefined),
+    };
+    const partsMap = { size: 2 };
+    const fragment = {
+      length: 0,
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+    };
+    const ydoc = {
+      getMap: vi.fn((name) => (name === 'parts' ? partsMap : metaMap)),
+      getXmlFragment: vi.fn(() => fragment),
+    };
+
+    const provider = {
+      listeners: {},
+      on: vi.fn((event, handler) => {
+        provider.listeners[event] = handler;
+      }),
+      off: vi.fn(),
+    };
+
+    const wrapper = mount(SuperEditor, {
+      props: {
+        documentId: 'doc-fragment-timeout',
+        options: {
+          ydoc,
+          collaborationProvider: provider,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const syncedHandler = provider.on.mock.calls.find(([event]) => event === 'synced')[1];
+    syncedHandler();
+    await flushPromises();
+
+    // Fragment never settles — editor should NOT be called yet
+    expect(EditorConstructor).not.toHaveBeenCalled();
+
+    // Advance past the 200ms settling timeout
+    vi.advanceTimersByTime(200);
+    await flushPromises();
+
+    // Should initialize with isNewFile=false, no fragment (parts-only room)
+    expect(EditorConstructor).toHaveBeenCalledTimes(1);
+    const options = EditorConstructor.mock.calls[0][0];
+    expect(options.isNewFile).toBe(false);
+    expect(options.fragment).toBeUndefined();
+    expect(fragment.unobserve).toHaveBeenCalled();
+
+    wrapper.unmount();
+    vi.useRealTimers();
+  });
+
+  it('skips settling wait when fragment already has content (non-legacy room)', async () => {
+    vi.useFakeTimers();
+
+    const metaMap = {
+      has: vi.fn(() => false),
+      get: vi.fn(() => undefined),
+    };
+    const partsMap = { size: 1 };
+    const fragment = { length: 5 };
+    const ydoc = {
+      getMap: vi.fn((name) => (name === 'parts' ? partsMap : metaMap)),
+      getXmlFragment: vi.fn(() => fragment),
+    };
+
+    const provider = {
+      listeners: {},
+      on: vi.fn((event, handler) => {
+        provider.listeners[event] = handler;
+      }),
+      off: vi.fn(),
+    };
+
+    const wrapper = mount(SuperEditor, {
+      props: {
+        documentId: 'doc-fragment-immediate',
+        options: {
+          ydoc,
+          collaborationProvider: provider,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const syncedHandler = provider.on.mock.calls.find(([event]) => event === 'synced')[1];
+    syncedHandler();
+    await flushPromises();
+
+    // Fragment already has content — no settling needed, editor initialized immediately
+    expect(EditorConstructor).toHaveBeenCalledTimes(1);
+    const options = EditorConstructor.mock.calls[0][0];
+    expect(options.fragment).toStrictEqual(fragment);
+    expect(options.isNewFile).toBe(false);
+
+    wrapper.unmount();
+    vi.useRealTimers();
+  });
+
   it('skips waiting for sync when provider is already synced', async () => {
     vi.useFakeTimers();
 
@@ -275,7 +443,7 @@ describe('SuperEditor.vue', () => {
 
     // Should NOT register sync listeners since already synced
     expect(provider.on).not.toHaveBeenCalledWith('synced', expect.any(Function));
-    expect(ydoc.getMap).toHaveBeenCalledWith('meta');
+    expect(ydoc.getMap.mock.calls).toContainEqual(['meta']);
     expect(EditorConstructor).toHaveBeenCalledTimes(1);
 
     wrapper.unmount();
