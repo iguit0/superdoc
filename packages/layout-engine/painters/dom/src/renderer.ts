@@ -776,6 +776,81 @@ const isValidSafeFragment = (fragment: string): boolean => {
   return SAFE_ANCHOR_PATTERN.test(fragment);
 };
 
+type ImageFilterSource = Pick<ImageBlock, 'grayscale' | 'gain' | 'blacklevel' | 'lum'>;
+
+const clampLumUnit = (value: number): number => {
+  return Math.max(-100000, Math.min(100000, value));
+};
+
+const parseVmlFixedFraction = (value: string | number | undefined): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+
+  if (value.endsWith('f')) {
+    const raw = Number.parseInt(value.slice(0, -1), 10);
+    return Number.isFinite(raw) ? raw / 65536 : null;
+  }
+
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const buildImageFilters = (source: ImageFilterSource): string[] => {
+  const filters: string[] = [];
+
+  if (source.grayscale) {
+    filters.push('grayscale(100%)');
+  }
+
+  if (source.gain != null || source.blacklevel != null) {
+    const gain = parseVmlFixedFraction(source.gain);
+    const blacklevel = parseVmlFixedFraction(source.blacklevel);
+
+    if (gain != null) {
+      const contrast = Math.max(0, gain);
+      if (contrast > 0) {
+        filters.push(`contrast(${contrast})`);
+      }
+    }
+
+    if (blacklevel != null) {
+      // CSS has no black-point control, so approximate VML blacklevel with a linear
+      // brightness shift using the same 0..32767 range Word's watermark UI uses.
+      const brightness = Math.max(0, 1 + blacklevel * (65536 / 32767));
+      if (brightness > 0) {
+        filters.push(`brightness(${brightness})`);
+      }
+    }
+  }
+
+  if (source.lum) {
+    // a:lum uses ST_FixedPercentage values expressed in thousandths of a percent.
+    // Convert those percentage deltas into CSS filter multipliers.
+    const contrastValue = typeof source.lum.contrast === 'number' ? clampLumUnit(source.lum.contrast) : null;
+    const brightValue = typeof source.lum.bright === 'number' ? clampLumUnit(source.lum.bright) : null;
+
+    if (contrastValue != null) {
+      const contrast = Math.max(0, 1 + contrastValue / 100000);
+      if (contrast >= 0) {
+        filters.push(`contrast(${contrast})`);
+      }
+    }
+
+    if (brightValue != null) {
+      const brightness = Math.max(0, 1 + brightValue / 100000);
+      if (brightness >= 0) {
+        filters.push(`brightness(${brightness})`);
+      }
+    }
+  }
+
+  return filters;
+};
+
 /**
  * URL-encode a fragment string for use in a URL hash.
  * Returns null if encoding fails (rare edge case).
@@ -3254,36 +3329,7 @@ export class DomPainter {
         img.style.transformOrigin = 'center';
       }
 
-      // Apply VML image adjustments (gain/blacklevel) as CSS filters for watermark effects
-      // conversion formulas calculated based on Libreoffice vml reader
-      // https://github.com/LibreOffice/core/blob/951a74d047cfddff78014225f55ecb2bbdcd9c4c/oox/source/vml/vmlshapecontext.cxx#L465C13-L493C1
-      const filters: string[] = [];
-
-      // Apply OOXML grayscale effect
-      if (block.grayscale) {
-        filters.push('grayscale(100%)');
-      }
-
-      if (block.gain != null || block.blacklevel != null) {
-        // Convert VML gain to CSS contrast
-        // VML gain is a hex string like "19661f" - higher = more contrast
-        if (block.gain && typeof block.gain === 'string' && block.gain.endsWith('f')) {
-          const contrast = Math.max(0, parseInt(block.gain) / 65536) * (2 / 3); // 2/3 factor based on visual comparison.
-          if (contrast > 0) {
-            filters.push(`contrast(${contrast})`);
-          }
-        }
-
-        // Convert VML blacklevel (brightness) to CSS brightness
-        // VML blacklevel is a hex string like "22938f" - lower = less brightness
-        if (block.blacklevel && typeof block.blacklevel === 'string' && block.blacklevel.endsWith('f')) {
-          const brightness = Math.max(0, 1 + parseInt(block.blacklevel) / 327 / 100) * 1.3; // 1.3 factor added based on visual comparison.
-          if (brightness > 0) {
-            filters.push(`brightness(${brightness})`);
-          }
-        }
-      }
-
+      const filters = buildImageFilters(block);
       if (filters.length > 0) {
         img.style.filter = filters.join(' ');
       }
@@ -4744,32 +4790,7 @@ export class DomPainter {
       img.style.transformOrigin = 'center';
     }
 
-    // Apply image effects (grayscale, VML adjustments for watermarks)
-    const filters: string[] = [];
-
-    // Apply OOXML grayscale effect
-    if (run.grayscale) {
-      filters.push('grayscale(100%)');
-    }
-
-    if (run.gain != null || run.blacklevel != null) {
-      // Convert VML gain to CSS contrast
-      if (run.gain && typeof run.gain === 'string' && run.gain.endsWith('f')) {
-        const contrast = Math.max(0, parseInt(run.gain) / 65536) * (2 / 3);
-        if (contrast > 0) {
-          filters.push(`contrast(${contrast})`);
-        }
-      }
-
-      // Convert VML blacklevel to CSS brightness
-      if (run.blacklevel && typeof run.blacklevel === 'string' && run.blacklevel.endsWith('f')) {
-        const brightness = Math.max(0, 1 + parseInt(run.blacklevel) / 327 / 100) * 1.3;
-        if (brightness > 0) {
-          filters.push(`brightness(${brightness})`);
-        }
-      }
-    }
-
+    const filters = buildImageFilters(run);
     if (filters.length > 0) {
       img.style.filter = filters.join(' ');
     }
