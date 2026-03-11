@@ -834,6 +834,9 @@ importers:
 
   packages/layout-engine/painters/dom:
     dependencies:
+      '@superdoc/common':
+        specifier: workspace:*
+        version: link:../../../../shared/common
       '@superdoc/contracts':
         specifier: workspace:*
         version: link:../../contracts
@@ -18535,7 +18538,7 @@ snapshots:
     dependencies:
       foreground-child: 3.3.1
       jackspeak: 3.4.3
-      minimatch: 9.0.9
+      minimatch: 9.0.5
       minipass: 7.1.2
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
@@ -19643,7 +19646,7 @@ snapshots:
       lodash.isstring: 4.0.1
       lodash.once: 4.1.1
       ms: 2.1.3
-      semver: 7.7.4
+      semver: 7.7.3
 
   jsprim@2.0.2:
     dependencies:
