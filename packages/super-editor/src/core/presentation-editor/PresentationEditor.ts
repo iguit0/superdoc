@@ -329,6 +329,8 @@ export class PresentationEditor extends EventEmitter {
   #ariaLiveRegion: HTMLElement | null = null;
   #a11ySelectionAnnounceTimeout: number | null = null;
   #a11yLastAnnouncedSelectionKey: string | null = null;
+  #headerFooterSelectionHandler: ((...args: unknown[]) => void) | null = null;
+  #headerFooterEditor: Editor | null = null;
   #lastSelectedFieldAnnotation: {
     element: HTMLElement;
     pmStart: number;
@@ -2860,7 +2862,6 @@ export class PresentationEditor extends EventEmitter {
       event: 'collaborationReady',
       handler: handleCollaborationReady as (...args: unknown[]) => void,
     });
-
     // Listen for comment selection changes to update Layout Engine highlighting
     const handleCommentsUpdate = (payload: { activeCommentId?: string | null }) => {
       if (this.#domPainter?.setActiveComment) {
@@ -3200,11 +3201,41 @@ export class PresentationEditor extends EventEmitter {
       },
       onEditingContext: (data) => {
         this.emit('headerFooterEditingContext', data);
-        this.#announce(
-          data.kind === 'body'
-            ? 'Exited header/footer edit mode.'
-            : `Editing ${data.kind === 'header' ? 'Header' : 'Footer'} (${data.sectionType ?? 'default'})`,
-        );
+
+        // Clean up any previous header/footer selection listener
+        if (this.#headerFooterEditor && this.#headerFooterSelectionHandler) {
+          this.#headerFooterEditor.off?.('selectionUpdate', this.#headerFooterSelectionHandler);
+          this.#headerFooterEditor = null;
+          this.#headerFooterSelectionHandler = null;
+        }
+
+        if (data.kind === 'body') {
+          this.#announce('Exited header/footer edit mode.');
+          // Ensure the selection overlay is immediately resynced to the body
+          // editor when leaving header/footer mode, so any stale header/footer
+          // highlights are cleared.
+          this.#scheduleSelectionUpdate({ immediate: true });
+        } else {
+          this.#announce(`Editing ${data.kind === 'header' ? 'Header' : 'Footer'} (${data.sectionType ?? 'default'})`);
+
+          // Wire selection updates from the active header/footer editor into
+          // the shared selection overlay + aria-live announcements.
+          const headerFooterEditor = data.editor;
+          const handler = () => {
+            this.#scheduleSelectionUpdate();
+            this.#scheduleA11ySelectionAnnouncement();
+          };
+          headerFooterEditor.on?.('selectionUpdate', handler);
+          this.#headerFooterEditor = headerFooterEditor;
+          this.#headerFooterSelectionHandler = handler;
+
+          // Also trigger an initial selection sync immediately on entry so the
+          // body selection overlay is cleared or updated to match the current
+          // header/footer selection state, instead of leaving stale body
+          // highlights until the first selectionUpdate event fires.
+          this.#scheduleSelectionUpdate({ immediate: true });
+          this.#scheduleA11ySelectionAnnouncement({ immediate: true });
+        }
       },
       onEditBlocked: (reason) => {
         this.emit('headerFooterEditBlocked', { reason });
@@ -4296,10 +4327,9 @@ export class PresentationEditor extends EventEmitter {
     const shouldScrollIntoView = this.#shouldScrollSelectionIntoView;
     this.#shouldScrollSelectionIntoView = false;
 
-    // In header/footer mode, the ProseMirror editor handles its own caret
     const sessionMode = this.#headerFooterSession?.session?.mode ?? 'body';
     if (sessionMode !== 'body') {
-      this.#clearSelectedFieldAnnotationClass();
+      this.#updateHeaderFooterSelection();
       return;
     }
 
@@ -4960,8 +4990,6 @@ export class PresentationEditor extends EventEmitter {
 
   #announceSelectionNow(): void {
     if (!this.#ariaLiveRegion) return;
-    const sessionMode = this.#headerFooterSession?.session?.mode ?? 'body';
-    if (sessionMode !== 'body') return;
     const announcement = computeA11ySelectionAnnouncementFromHelper(this.getActiveEditor().state);
     if (!announcement) return;
 
@@ -5953,6 +5981,70 @@ export class PresentationEditor extends EventEmitter {
         'Layout engine hit an error. Your document is safe — try reloading layout.';
       if (this.#layoutOptions.debugLabel) {
         this.#errorBannerMessage.textContent += ` (${this.#layoutOptions.debugLabel}: ${error.message})`;
+      }
+    }
+  }
+
+  /**
+   * Updates the selection overlay while editing headers/footers.
+   *
+   * Uses header/footer layout data from HeaderFooterSessionManager to compute
+   * selection rectangles in layout space, then renders them into the shared
+   * selection overlay so selection behaves consistently with body content.
+   *
+   * Caret rendering is left to the ProseMirror header/footer editor; this
+   * overlay only mirrors non-collapsed selections.
+   */
+  #updateHeaderFooterSelection() {
+    this.#clearSelectedFieldAnnotationClass();
+
+    if (!this.#localSelectionLayer) {
+      return;
+    }
+
+    const activeEditor = this.getActiveEditor();
+    const selection = activeEditor?.state?.selection;
+    if (!selection) {
+      try {
+        this.#localSelectionLayer.innerHTML = '';
+      } catch {}
+      return;
+    }
+
+    const { from, to } = selection;
+
+    // Let the header/footer ProseMirror editor handle caret rendering.
+    if (from === to) {
+      try {
+        this.#localSelectionLayer.innerHTML = '';
+      } catch {}
+      return;
+    }
+
+    const rects = this.#computeHeaderFooterSelectionRects(from, to);
+    if (!rects.length) {
+      return;
+    }
+
+    // Header/footer selection rects are already mapped into body-page
+    // coordinates using the body page height and no page gap. To avoid
+    // double-applying any gap or using the header/footer layout height, use
+    // the body page height here and a zero page gap.
+    const pageHeight = this.#getBodyPageHeight();
+    const pageGap = 0;
+
+    try {
+      this.#localSelectionLayer.innerHTML = '';
+      renderSelectionRects({
+        localSelectionLayer: this.#localSelectionLayer,
+        rects,
+        pageHeight,
+        pageGap,
+        convertPageLocalToOverlayCoords: (pageIndex, x, y) => this.#convertPageLocalToOverlayCoords(pageIndex, x, y),
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[PresentationEditor] Failed to render header/footer selection rects:', error);
       }
     }
   }
