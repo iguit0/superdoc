@@ -399,7 +399,7 @@ describe('tables-adapter regressions', () => {
 
     const result = tablesInsertColumnAdapter(
       editor,
-      { tableNodeId: 'table-1', columnIndex: 1, position: 'right' },
+      { nodeId: 'table-1', columnIndex: 1, position: 'right' },
       { changeMode: 'direct' },
     );
 
@@ -413,7 +413,7 @@ describe('tables-adapter regressions', () => {
 
     const result = tablesInsertColumnAdapter(
       editor,
-      { tableNodeId: 'table-1', columnIndex: 1, position: 'right' },
+      { nodeId: 'table-1', columnIndex: 1, position: 'right' },
       { changeMode: 'direct' },
     );
 
@@ -694,6 +694,51 @@ describe('tables-adapter regressions', () => {
     expect(result).toMatchObject({
       success: false,
       failure: { code: 'INVALID_TARGET' },
+    });
+  });
+
+  it.each([
+    {
+      name: 'tables.setBorder',
+      run: (editor: Editor) =>
+        tablesSetBorderAdapter(editor, {
+          nodeId: 'cell-1',
+          edge: 'top',
+          lineStyle: 'single',
+          lineWeightPt: 1,
+          color: '000000',
+        }),
+    },
+    {
+      name: 'tables.clearBorder',
+      run: (editor: Editor) =>
+        tablesClearBorderAdapter(editor, {
+          nodeId: 'cell-1',
+          edge: 'top',
+        }),
+    },
+    {
+      name: 'tables.setShading',
+      run: (editor: Editor) =>
+        tablesSetShadingAdapter(editor, {
+          nodeId: 'cell-1',
+          color: 'FF0000',
+        }),
+    },
+    {
+      name: 'tables.clearShading',
+      run: (editor: Editor) =>
+        tablesClearShadingAdapter(editor, {
+          nodeId: 'cell-1',
+        }),
+    },
+  ])('returns the parent table address for cell-targeted $name receipts', ({ run }) => {
+    const editor = makeTableEditor();
+    const result = run(editor);
+
+    expect(result).toMatchObject({
+      success: true,
+      table: { kind: 'block', nodeType: 'table', nodeId: 'table-1' },
     });
   });
 

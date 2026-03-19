@@ -2,11 +2,14 @@ import type { Node as ProseMirrorNode, NodeType } from 'prosemirror-model';
 import type { Editor } from '../core/Editor.js';
 import { v4 as uuidv4 } from 'uuid';
 import type {
-  BlockNodeAddress,
   CreateTableInput,
   CreateTableResult,
   CreateTableSuccessResult,
   MutationOptions,
+  TableAddress,
+  TableCellAddress,
+  TableOrCellAddress,
+  TableOrRowAddress,
   TableLocator,
   TableMutationResult,
   TablesMoveInput,
@@ -120,7 +123,7 @@ function notYetImplemented(operationName: string): never {
 }
 
 function buildTableSuccess(
-  tableAddress?: BlockNodeAddress,
+  tableAddress?: TableAddress,
   trackedChangeRefs?: { kind: 'entity'; entityType: 'trackedChange'; entityId: string }[],
 ): TableMutationResult {
   return {
@@ -515,10 +518,8 @@ function applyTableBorderPresetToCellBorders(
 
 /** Flattened row locator shape accepted by {@link resolveRowLocator}. */
 type RowLocatorFields = {
-  target?: BlockNodeAddress;
+  target?: TableOrRowAddress;
   nodeId?: string;
-  tableTarget?: BlockNodeAddress;
-  tableNodeId?: string;
   rowIndex?: number;
 };
 
@@ -883,7 +884,7 @@ export function tablesDeleteAdapter(
   const { candidate } = resolveTableLocator(editor, input, 'tables.delete');
 
   if (options?.dryRun) {
-    return buildTableSuccess(toBlockAddress(candidate));
+    return buildTableSuccess();
   }
 
   try {
@@ -966,7 +967,7 @@ export function tablesMoveAdapter(
   const { candidate, address } = resolveTableLocator(editor, input, 'tables.move');
 
   if (options?.dryRun) {
-    return buildTableSuccess(toBlockAddress(candidate));
+    return buildTableSuccess(address);
   }
 
   try {
@@ -1003,7 +1004,7 @@ export function tablesMoveAdapter(
         const found = index.candidates.find(
           (c) => c.nodeType === 'table' && (c.node.attrs as Record<string, unknown>).sdBlockId === sdBlockId,
         );
-        if (found) freshAddress = toBlockAddress(found);
+        if (found) freshAddress = toBlockAddress(found) as TableAddress;
       }
     }
     return buildTableSuccess(freshAddress);
@@ -1729,7 +1730,7 @@ export function tablesConvertFromTextAdapter(
   }
 
   if (options?.dryRun) {
-    return buildTableSuccess(toBlockAddress(candidate));
+    return buildTableSuccess();
   }
 
   try {
@@ -1819,7 +1820,7 @@ export function tablesConvertFromTextAdapter(
     const insertedTable = getBlockIndex(editor).candidates.find(
       (block) => block.nodeType === 'table' && block.pos === startPos,
     );
-    return buildTableSuccess(insertedTable ? toBlockAddress(insertedTable) : undefined);
+    return buildTableSuccess(insertedTable ? (toBlockAddress(insertedTable) as TableAddress) : undefined);
   } catch {
     return toTableFailure('INVALID_TARGET', 'Text-to-table conversion could not be applied.');
   }
@@ -2865,12 +2866,12 @@ export function tablesSetStyleOptionAdapter(
  */
 function resolveTableOrCellTarget(
   editor: Editor,
-  locator: { target?: BlockNodeAddress; nodeId?: string },
+  locator: { target?: TableOrCellAddress; nodeId?: string },
   operationName: string,
 ): {
   node: import('prosemirror-model').Node;
   pos: number;
-  address: BlockNodeAddress;
+  address: TableAddress;
   scope: 'table' | 'cell' | 'invalid';
 } {
   const index = getBlockIndex(editor);
@@ -2888,9 +2889,22 @@ function resolveTableOrCellTarget(
     throw new DocumentApiAdapterError('TARGET_NOT_FOUND', `${operationName}: target was not found.`);
   }
 
-  const scope: 'table' | 'cell' | 'invalid' =
-    candidate.nodeType === 'table' ? 'table' : candidate.nodeType === 'tableCell' ? 'cell' : 'invalid';
-  return { node: candidate.node, pos: candidate.pos, address: toBlockAddress(candidate), scope };
+  if (candidate.nodeType === 'tableCell') {
+    const resolvedCell = resolveCellLocator(
+      editor,
+      locator as { target?: TableCellAddress; nodeId?: string },
+      operationName,
+    );
+    return {
+      node: candidate.node,
+      pos: candidate.pos,
+      address: resolvedCell.table.address,
+      scope: 'cell',
+    };
+  }
+
+  const scope: 'table' | 'cell' | 'invalid' = candidate.nodeType === 'table' ? 'table' : 'invalid';
+  return { node: candidate.node, pos: candidate.pos, address: toBlockAddress(candidate) as TableAddress, scope };
 }
 
 /**
@@ -3630,7 +3644,8 @@ export function tablesGetCellsAdapter(editor: Editor, input: TablesGetCellsInput
   cells.sort((a, b) => a.rowIndex - b.rowIndex || a.columnIndex - b.columnIndex);
 
   return {
-    tableNodeId: resolved.candidate.nodeId,
+    nodeId: resolved.candidate.nodeId,
+    address: resolved.address,
     cells,
   };
 }
@@ -3641,6 +3656,7 @@ export function tablesGetPropertiesAdapter(editor: Editor, input: TablesGetPrope
 
   const result: TablesGetPropertiesOutput = {
     nodeId: resolved.candidate.nodeId,
+    address: resolved.address,
   };
 
   if (tp.tableStyleId != null) result.styleId = String(tp.tableStyleId);

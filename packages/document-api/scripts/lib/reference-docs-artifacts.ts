@@ -330,7 +330,7 @@ function preferredDiscriminator(
 ): { path: string; value: unknown } | undefined {
   if (discriminators.length === 0) return undefined;
 
-  const priorities = [/^success$/u, /(^|\.)(type|kind|mode|channel)$/u];
+  const priorities = [/^success$/u, /(^|\.)nodeType$/u, /(^|\.)(type|kind|mode|channel)$/u];
   for (const pattern of priorities) {
     const match = discriminators.find((entry) => pattern.test(entry.path));
     if (match) return match;
@@ -445,12 +445,53 @@ function buildFieldSections(schema: JsonSchema, $defs: Defs): FieldSection[] {
     if (!Array.isArray(variants) || variants.length === 0) continue;
 
     return variants.flatMap((variant, index) => {
-      const variantSchema = flattenAllOf(resolveRef(variant as JsonSchema, $defs).resolved, $defs);
+      const resolvedVariant = flattenAllOf(resolveRef(variant as JsonSchema, $defs).resolved, $defs);
+      const variantProperties = resolvedVariant.properties as Record<string, JsonSchema> | undefined;
+      const parentProperties = flat.properties as Record<string, JsonSchema> | undefined;
+      const hasOwnProperties = !!variantProperties && Object.keys(variantProperties).length > 0;
+      const variantRequired = new Set<string>(
+        Array.isArray(resolvedVariant.required) ? (resolvedVariant.required as string[]) : [],
+      );
+
+      // For schemas like `{ properties: {...}, oneOf: [{required:['target']}, {required:['nodeId']}] }`,
+      // inherit the parent properties into each variant so the field table shows
+      // the actual payload shape instead of `_No fields._`.
+      const hiddenFields = new Set<string>();
+      if (parentProperties && !hasOwnProperties) {
+        for (let otherIndex = 0; otherIndex < variants.length; otherIndex++) {
+          if (otherIndex === index) continue;
+          const otherRequired = Array.isArray((variants[otherIndex] as JsonSchema).required)
+            ? ((variants[otherIndex] as JsonSchema).required as string[])
+            : [];
+          for (const field of otherRequired) {
+            if (!variantRequired.has(field)) hiddenFields.add(field);
+          }
+        }
+      }
+
+      const variantSchema =
+        parentProperties && !hasOwnProperties
+          ? {
+              ...resolvedVariant,
+              type: 'object',
+              properties: Object.fromEntries(
+                Object.entries(parentProperties).filter(([field]) => !hiddenFields.has(field)),
+              ),
+              additionalProperties: resolvedVariant.additionalProperties ?? flat.additionalProperties ?? false,
+              required: [
+                ...new Set([...(Array.isArray(flat.required) ? (flat.required as string[]) : []), ...variantRequired]),
+              ],
+            }
+          : resolvedVariant;
+
       const discriminators = collectConstDiscriminators(variantSchema, $defs);
       const preferred = preferredDiscriminator(discriminators);
-      const label = preferred
-        ? `Variant ${index + 1} (${preferred.path}=${JSON.stringify(preferred.value)})`
-        : `Variant ${index + 1}`;
+      const variantLabelSuffix = preferred
+        ? `${preferred.path}=${JSON.stringify(preferred.value)}`
+        : variantRequired.size > 0
+          ? [...variantRequired].join(', ')
+          : undefined;
+      const label = variantLabelSuffix ? `Variant ${index + 1} (${variantLabelSuffix})` : `Variant ${index + 1}`;
       const rows = buildFieldRows(variantSchema, $defs);
       if (rows.length === 0 && hasTopLevelUnion(variantSchema)) {
         return buildFieldSections(variantSchema, $defs).map((section) => ({
@@ -610,13 +651,41 @@ function generateExample(schema: JsonSchema, $defs: Defs, fieldName?: string, de
   if (schema.type === 'object' && schema.properties) {
     const properties = schema.properties as Record<string, JsonSchema>;
     const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
+
+    // When oneOf/anyOf is present, pick ONE variant and exclude properties
+    // that are exclusive to other variants. This prevents generating examples
+    // that violate the oneOf constraint (e.g., showing both target AND nodeId).
+    const excludedByVariant = new Set<string>();
     for (const keyword of ['oneOf', 'anyOf'] as const) {
       const variants = schema[keyword];
       if (!Array.isArray(variants) || variants.length === 0) continue;
-      const firstVariant = variants[0] as JsonSchema;
-      if (Array.isArray(firstVariant.required)) {
-        for (const requiredField of firstVariant.required as string[]) {
-          requiredSet.add(requiredField);
+
+      // Collect required fields from all variants
+      const allVariantRequired: string[][] = (variants as JsonSchema[]).map((v) =>
+        Array.isArray(v.required) ? (v.required as string[]) : [],
+      );
+
+      // Pick the simplest variant (fewest required fields).
+      // e.g., { required: ['nodeId'] } over { required: ['target'] }
+      let chosenIdx = -1;
+      for (let i = 0; i < allVariantRequired.length; i++) {
+        const reqs = allVariantRequired[i];
+        if (reqs.length === 0) continue;
+        if (chosenIdx === -1 || reqs.length < allVariantRequired[chosenIdx].length) {
+          chosenIdx = i;
+        }
+      }
+
+      if (chosenIdx >= 0) {
+        const chosenRequired = new Set(allVariantRequired[chosenIdx]);
+        for (const req of chosenRequired) requiredSet.add(req);
+
+        // Exclude properties required by OTHER variants but not the chosen one
+        for (let i = 0; i < allVariantRequired.length; i++) {
+          if (i === chosenIdx) continue;
+          for (const req of allVariantRequired[i]) {
+            if (!chosenRequired.has(req)) excludedByVariant.add(req);
+          }
         }
       }
       break;
@@ -624,9 +693,10 @@ function generateExample(schema: JsonSchema, $defs: Defs, fieldName?: string, de
 
     const result: Record<string, unknown> = {};
     const keys = Object.keys(properties);
-    // Include required properties + up to 2 optional
+    // Include required properties + up to 2 optional (skip variant-excluded)
     let optionalCount = 0;
     for (const key of keys) {
+      if (excludedByVariant.has(key)) continue;
       if (requiredSet.has(key)) {
         result[key] = generateExample(properties[key], $defs, key, depth + 1);
       } else if (optionalCount < 2) {
@@ -690,6 +760,18 @@ function makeExampleBlockAddress(nodeType: string): Record<string, unknown> {
   };
 }
 
+function normalizeExampleBlockAddress(input: unknown, fallbackNodeType: string): Record<string, unknown> {
+  if (!isObjectRecord(input)) {
+    return makeExampleBlockAddress(fallbackNodeType);
+  }
+
+  return {
+    kind: input.kind === 'block' ? 'block' : 'block',
+    nodeId: typeof input.nodeId === 'string' ? input.nodeId : 'node-def456',
+    nodeType: typeof input.nodeType === 'string' ? input.nodeType : fallbackNodeType,
+  };
+}
+
 function isTableReferenceOperation(operationId: ContractOperationSnapshot['operationId']): boolean {
   return operationId === 'create.table' || operationId.startsWith('tables.');
 }
@@ -705,15 +787,15 @@ function normalizeTableOperationInputExample(
   const clone = structuredClone(input) as Record<string, unknown>;
 
   if (isObjectRecord(clone.tableTarget)) {
-    clone.tableTarget = makeExampleBlockAddress('table');
+    clone.target = normalizeExampleBlockAddress(clone.tableTarget, 'table');
+    delete clone.tableTarget;
     delete clone.tableNodeId;
-    delete clone.target;
     delete clone.nodeId;
     return clone;
   }
 
   if (isObjectRecord(clone.target)) {
-    clone.target = makeExampleBlockAddress('table');
+    clone.target = normalizeExampleBlockAddress(clone.target, 'table');
     delete clone.nodeId;
   }
 
@@ -773,7 +855,7 @@ On success, \`result.table\` is the created table address. Reuse \`result.table.
   }
 
   return `<Tip>
-When present, \`result.table\` is the follow-up address to reuse after this call. For non-destructive table-targeted mutations, pass \`result.table.nodeId\` to the next table operation instead of re-running \`find()\`. Destructive operations may omit \`table\`, and cell-targeted border/shading calls may still return a \`tableCell\` address.
+When present, \`result.table\` is the follow-up address to reuse after this call. For non-destructive table-targeted mutations, pass \`result.table.nodeId\` to the next table operation instead of re-running \`find()\`. Destructive operations may omit \`table\`.
 </Tip>`;
 }
 
