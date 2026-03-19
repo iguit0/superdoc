@@ -66,6 +66,7 @@ import {
   resolveColumnLocator,
   resolveCellLocator,
   resolveMergeRangeLocator,
+  resolvePostMutationTableAddress,
   getTableColumnCount,
   toTableFailure,
 } from './helpers/table-target-resolver.js';
@@ -946,7 +947,7 @@ export function tablesClearContentsAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table content clearing could not be applied.');
   }
@@ -962,7 +963,7 @@ export function tablesMoveAdapter(
 ): TableMutationResult {
   rejectTrackedMode('tables.move', options);
 
-  const { candidate } = resolveTableLocator(editor, input, 'tables.move');
+  const { candidate, address } = resolveTableLocator(editor, input, 'tables.move');
 
   if (options?.dryRun) {
     return buildTableSuccess(toBlockAddress(candidate));
@@ -990,9 +991,22 @@ export function tablesMoveAdapter(
     editor.dispatch(tr);
     clearIndexCache(editor);
 
-    // Resolve the table at its new position to return its address.
-    // The nodeId is preserved because we moved the same node.
-    return buildTableSuccess();
+    // For move, position mapping fails (the node was deleted and re-inserted
+    // at a new location). Try nodeId-based resolution first (works for DOCX
+    // tables with stable paraId), then fall back to sdBlockId lookup for
+    // runtime tables whose position-based nodeId changed.
+    let freshAddress = resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr);
+    if (!freshAddress) {
+      const sdBlockId = (tableSlice.attrs as Record<string, unknown>).sdBlockId;
+      if (typeof sdBlockId === 'string') {
+        const index = getBlockIndex(editor);
+        const found = index.candidates.find(
+          (c) => c.nodeType === 'table' && (c.node.attrs as Record<string, unknown>).sdBlockId === sdBlockId,
+        );
+        if (found) freshAddress = toBlockAddress(found);
+      }
+    }
+    return buildTableSuccess(freshAddress);
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table move could not be applied.');
   }
@@ -1055,7 +1069,7 @@ export function tablesSetLayoutAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table layout update could not be applied.');
   }
@@ -1098,7 +1112,7 @@ export function tablesSetAltTextAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table alt text update could not be applied.');
   }
@@ -1158,7 +1172,7 @@ export function tablesInsertRowAdapter(
     else applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Row insertion could not be applied.');
   }
@@ -1231,7 +1245,7 @@ export function tablesDeleteRowAdapter(
     else applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Row deletion could not be applied.');
   }
@@ -1276,7 +1290,7 @@ export function tablesSetRowHeightAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Row height update could not be applied.');
   }
@@ -1344,7 +1358,7 @@ export function tablesDistributeRowsAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Row distribution could not be applied.');
   }
@@ -1393,7 +1407,7 @@ export function tablesSetRowOptionsAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Row options update could not be applied.');
   }
@@ -1450,7 +1464,7 @@ export function tablesInsertColumnAdapter(
     else applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Column insertion could not be applied.');
   }
@@ -1502,7 +1516,7 @@ export function tablesDeleteColumnAdapter(
     else applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Column deletion could not be applied.');
   }
@@ -1572,7 +1586,7 @@ export function tablesSetColumnWidthAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Column width update could not be applied.');
   }
@@ -1675,7 +1689,7 @@ export function tablesDistributeColumnsAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Column distribution could not be applied.');
   }
@@ -2112,7 +2126,7 @@ export function tablesInsertCellAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell insertion could not be applied.');
   }
@@ -2230,7 +2244,7 @@ export function tablesDeleteCellAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell deletion could not be applied.');
   }
@@ -2325,7 +2339,7 @@ export function tablesMergeCellsAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell merge could not be applied.');
   }
@@ -2381,7 +2395,7 @@ export function tablesUnmergeCellsAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell unmerge could not be applied.');
   }
@@ -2536,7 +2550,7 @@ export function tablesSplitCellAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell split could not be applied.');
   }
@@ -2598,7 +2612,7 @@ export function tablesSetCellPropertiesAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell properties update could not be applied.');
   }
@@ -2700,7 +2714,7 @@ export function tablesSortAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table sort could not be applied.');
   }
@@ -2740,7 +2754,7 @@ export function tablesSetStyleAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table style assignment could not be applied.');
   }
@@ -2776,7 +2790,7 @@ export function tablesClearStyleAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table style removal could not be applied.');
   }
@@ -2835,7 +2849,7 @@ export function tablesSetStyleOptionAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table style option could not be applied.');
   }
@@ -2930,6 +2944,9 @@ export function tablesSetBorderAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
+    if (resolved.scope === 'table') {
+      return buildTableSuccess(resolvePostMutationTableAddress(editor, resolved.pos, resolved.address.nodeId, tr));
+    }
     return buildTableSuccess(resolved.address);
   } catch {
     return toTableFailure('INVALID_TARGET', 'Border update could not be applied.');
@@ -2983,6 +3000,9 @@ export function tablesClearBorderAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
+    if (resolved.scope === 'table') {
+      return buildTableSuccess(resolvePostMutationTableAddress(editor, resolved.pos, resolved.address.nodeId, tr));
+    }
     return buildTableSuccess(resolved.address);
   } catch {
     return toTableFailure('INVALID_TARGET', 'Border clear could not be applied.');
@@ -3042,7 +3062,7 @@ export function tablesApplyBorderPresetAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Border preset could not be applied.');
   }
@@ -3112,6 +3132,9 @@ export function tablesSetShadingAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
+    if (resolved.scope === 'table') {
+      return buildTableSuccess(resolvePostMutationTableAddress(editor, resolved.pos, resolved.address.nodeId, tr));
+    }
     return buildTableSuccess(resolved.address);
   } catch {
     return toTableFailure('INVALID_TARGET', 'Shading update could not be applied.');
@@ -3180,6 +3203,9 @@ export function tablesClearShadingAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
+    if (resolved.scope === 'table') {
+      return buildTableSuccess(resolvePostMutationTableAddress(editor, resolved.pos, resolved.address.nodeId, tr));
+    }
     return buildTableSuccess(resolved.address);
   } catch {
     return toTableFailure('INVALID_TARGET', 'Shading clear could not be applied.');
@@ -3227,7 +3253,7 @@ export function tablesSetTablePaddingAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Table padding could not be applied.');
   }
@@ -3278,7 +3304,7 @@ export function tablesSetCellPaddingAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(table.address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, table.candidate.pos, table.address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell padding could not be applied.');
   }
@@ -3318,7 +3344,7 @@ export function tablesSetCellSpacingAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell spacing could not be applied.');
   }
@@ -3356,7 +3382,7 @@ export function tablesClearCellSpacingAdapter(
     applyDirectMutationMeta(tr);
     editor.dispatch(tr);
     clearIndexCache(editor);
-    return buildTableSuccess(address);
+    return buildTableSuccess(resolvePostMutationTableAddress(editor, candidate.pos, address.nodeId, tr));
   } catch {
     return toTableFailure('INVALID_TARGET', 'Cell spacing removal could not be applied.');
   }
