@@ -17,7 +17,7 @@
   "logo": {
     "light": "/public/images/logo-light.png",
     "dark": "/public/images/logo-dark.png",
-    "href": "https://superdoc.dev"
+    "href": "https://docs.superdoc.dev"
   },
   "favicon": "/public/images/favicon.png",
   "icons": {
