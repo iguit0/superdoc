@@ -13,7 +13,7 @@ import type {
   DropCapRun,
   ParagraphFrame,
 } from '@superdoc/contracts';
-import type { PMNode } from '../types.js';
+import type { PMNode, ParagraphFont } from '../types.js';
 import type { ResolvedRunProperties } from '@superdoc/word-layout';
 import { computeWordParagraphLayout } from '@superdoc/word-layout';
 import { pickNumber, twipsToPx, isFiniteNumber, ptToPx } from '../utilities.js';
@@ -27,6 +27,7 @@ import {
   resolveParagraphProperties,
   resolveRunProperties,
   resolveDocxFontFamily,
+  getNumberingProperties,
   type ParagraphFrameProperties,
   type ParagraphProperties,
   type RunProperties,
@@ -119,6 +120,31 @@ export const normalizeNumberingProperties = (
   }
   return value;
 };
+
+const TRACKED_CHANGE_KEYS = new Set(['trackInsert', 'trackDelete']);
+
+export const hasExplicitParagraphRunProperties = (
+  paragraphProperties?: Pick<ParagraphProperties, 'runProperties'> | null,
+): boolean => {
+  if (paragraphProperties?.runProperties == null) return false;
+  return Object.keys(paragraphProperties.runProperties).some((key) => !TRACKED_CHANGE_KEYS.has(key));
+};
+
+const applyParagraphFontFallback = (
+  runAttrs: ResolvedRunProperties,
+  previousParagraphFont?: Partial<ParagraphFont>,
+): ResolvedRunProperties => {
+  if (!previousParagraphFont) {
+    return runAttrs;
+  }
+
+  return {
+    ...runAttrs,
+    fontFamily: previousParagraphFont.fontFamily ?? runAttrs.fontFamily,
+    fontSize: previousParagraphFont.fontSize ?? runAttrs.fontSize,
+  };
+};
+
 export const normalizeDropCap = (
   framePr: ParagraphFrameProperties | undefined,
   para: PMNode,
@@ -230,6 +256,7 @@ const extractDropCapRunFromParagraph = (para: PMNode, converterContext?: Convert
 export const computeParagraphAttrs = (
   para: PMNode,
   converterContext?: ConverterContext,
+  previousParagraphFont?: ParagraphFont,
 ): { paragraphAttrs: ParagraphAttrs; resolvedParagraphProperties: ParagraphProperties } => {
   const attrs = para.attrs ?? {};
   const paragraphProperties = (attrs.paragraphProperties ?? {}) as ParagraphProperties;
@@ -297,10 +324,38 @@ export const computeParagraphAttrs = (
       true,
       Boolean(paragraphProperties.numberingProperties),
     );
+
+    const markerRunAttrs = computeRunAttrs(markerRunProperties, converterContext);
+
+    // Only attempt to inherit `previousParagraphFont` when the paragraph doesn't define
+    // explicit runProperties. Otherwise markerRunProperties/resolveRunProperties already
+    // fully defines marker font.
+    let markerFontFallback: Partial<ParagraphFont> | undefined;
+    if (!hasExplicitParagraphRunProperties(paragraphProperties) && previousParagraphFont) {
+      // Detect whether numbering explicitly overrides the marker font family
+      // (e.g. Symbol/Wingdings). If it does, we must NOT overwrite it.
+      const numProps = paragraphProperties.numberingProperties;
+      const numId = numProps?.numId;
+      const ilvl = numProps?.ilvl ?? 0;
+      const numberingRunProps =
+        numId != null && numId !== 0
+          ? getNumberingProperties<RunProperties>('runProperties', converterContext!, ilvl, numId)
+          : ({} as RunProperties);
+      const numberingDefinesMarkerFontFamily = numberingRunProps.fontFamily != null;
+
+      markerFontFallback = {
+        // When numbering explicitly sets a marker font (Symbol/Wingdings), keep it.
+        fontFamily: numberingDefinesMarkerFontFamily ? undefined : previousParagraphFont.fontFamily,
+        // Preserve existing behavior: if the paragraph has no explicit run props,
+        // marker font size inherits from the previous paragraph.
+        fontSize: previousParagraphFont.fontSize,
+      };
+    }
+
     paragraphAttrs.wordLayout = computeWordParagraphLayout({
       paragraph: paragraphAttrs,
       listRenderingAttrs: normalizedListRendering,
-      markerRun: computeRunAttrs(markerRunProperties, converterContext),
+      markerRun: applyParagraphFontFallback(markerRunAttrs, markerFontFallback),
     });
   }
 
@@ -314,6 +369,7 @@ export const computeRunAttrs = (
   defaultFontFamily = 'Times New Roman',
 ): ResolvedRunProperties => {
   let fontFamily;
+
   if (converterContext) {
     fontFamily =
       resolveDocxFontFamily(runProps.fontFamily as Record<string, unknown>, converterContext.docx) || defaultFontFamily;
