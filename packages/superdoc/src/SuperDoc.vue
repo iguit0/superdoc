@@ -996,6 +996,7 @@ const onEditorTransaction = (payload = {}) => {
   if (inputType === 'historyUndo' || inputType === 'historyRedo') {
     const documentId = editor?.options?.documentId;
     syncTrackedChangePositionsWithDocument({ documentId, editor });
+    syncTrackedChangeComments({ superdoc: proxy.$superdoc, editor });
   }
 
   emitEditorTransaction(buildEditorTransactionPayload(payload));
