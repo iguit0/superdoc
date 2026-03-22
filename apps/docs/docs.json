@@ -97,7 +97,7 @@
           },
           {
             "group": "Document Engine",
-            "tag": "ALPHA",
+            "tag": "NEW",
             "pages": [
               "document-engine/overview",
               {
@@ -316,7 +316,7 @@
       {
         "type": "button",
         "href": "https://discord.com/invite/b9UuaZRyaB",
-        "label": "",
+        "label": "Discord",
         "icon": "discord"
       }
     ]
