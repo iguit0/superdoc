@@ -30,9 +30,6 @@ export const resolveTextAlign = (alignment: ParagraphAttrs['alignment'], isRtl: 
     case 'left':
       return alignment;
     case 'justify':
-      return isRtl ? 'right' : 'left';
-    default:
-    case 'justify':
     default:
       return isRtl ? 'right' : 'left';
   }
