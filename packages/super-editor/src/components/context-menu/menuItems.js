@@ -300,19 +300,14 @@ export function getItems(context, customItems = [], includeDefaultItems = true) 
           label: TEXTS.paste,
           icon: ICONS.paste,
           isDefault: true,
-          action: async (editor) => {
+          action: async (editor, context) => {
             const { view } = editor ?? {};
             if (!view) return;
-            // Save the current selection before focusing. When the context menu
-            // is open, its hidden search input holds focus, so the PM editor's
-            // contenteditable is blurred. A raw `view.dom.focus()` would restart
-            // ProseMirror's DOMObserver which reads the stale browser selection
-            // (collapsed at the document start) and overwrites the PM state.
-            // Using `view.focus()` (ProseMirror-aware) prevents this by writing
-            // the PM selection to the DOM before restarting the observer. We also
-            // save/restore as a safety net against async drift during clipboard reads.
-            const savedFrom = view.state.selection.from;
-            const savedTo = view.state.selection.to;
+            // Use the selection captured when the context menu opened — the
+            // right-click handler may have collapsed a range selection via
+            // moveCursorToMouseEvent before this action runs.
+            const savedFrom = context?.selectionStart ?? view.state.selection.from;
+            const savedTo = context?.selectionEnd ?? view.state.selection.to;
             view.focus();
             const { html, text } = await readClipboardRaw();
             // Restore selection after the async gap — ProseMirror's DOMObserver

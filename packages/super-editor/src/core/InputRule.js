@@ -348,7 +348,7 @@ export function handleHtmlPaste(html, editor, source) {
     cleanedHtml.dataset.superdocImport = 'true';
   }
 
-  let doc = PMDOMParser.fromSchema(editor.schema).parse(cleanedHtml);
+  let doc = PMDOMParser.fromSchema(editor.schema).parse(cleanedHtml, { preserveWhitespace: true });
   doc = mergeAdjacentTableFragments(doc);
 
   doc = wrapTextsInRuns(doc);
