@@ -286,8 +286,8 @@ catalogs:
       specifier: ^3.0.0
       version: 3.0.0
     yjs:
-      specifier: 13.6.19
-      version: 13.6.19
+      specifier: ^13.6.19
+      version: 13.6.30
 
 overrides:
   canvas: 3.2.1
@@ -425,7 +425,7 @@ importers:
     dependencies:
       '@hocuspocus/provider':
         specifier: 'catalog:'
-        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.19))(yjs@13.6.19)
+        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       fast-glob:
         specifier: 'catalog:'
         version: 3.3.3
@@ -434,10 +434,10 @@ importers:
         version: 20.4.0
       y-websocket:
         specifier: 'catalog:'
-        version: 3.0.0(yjs@13.6.19)
+        version: 3.0.0(yjs@13.6.30)
       yjs:
         specifier: 'catalog:'
-        version: 13.6.19
+        version: 13.6.30
     devDependencies:
       '@superdoc/document-api':
         specifier: workspace:*
@@ -811,7 +811,7 @@ importers:
         version: 10.4.27(postcss@8.5.6)
       axios:
         specifier: ^1.9.0
-        version: 1.13.2(debug@4.4.3)
+        version: 1.13.2
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1878,10 +1878,10 @@ importers:
         version: 0.2.117
       y-protocols:
         specifier: 'catalog:'
-        version: 1.0.7(yjs@13.6.19)
+        version: 1.0.7(yjs@13.6.30)
       yjs:
         specifier: 'catalog:'
-        version: 13.6.19
+        version: 13.6.30
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -2440,10 +2440,10 @@ importers:
         version: 1.6.11
       y-prosemirror:
         specifier: 'catalog:'
-        version: 1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.19))(yjs@13.6.19)
+        version: 1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       yjs:
         specifier: 'catalog:'
-        version: 13.6.19
+        version: 13.6.30
     devDependencies:
       '@floating-ui/dom':
         specifier: 'catalog:'
@@ -2489,7 +2489,7 @@ importers:
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.8)(esbuild@0.27.4)(happy-dom@20.4.0)(jiti@2.6.1)(jsdom@27.3.0(canvas@3.2.1))(less@4.4.2)(sass@1.97.3)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2)
       y-protocols:
         specifier: 'catalog:'
-        version: 1.0.7(yjs@13.6.19)
+        version: 1.0.7(yjs@13.6.30)
 
   packages/superdoc:
     dependencies:
@@ -2519,20 +2519,20 @@ importers:
         version: 3.5.25(typescript@5.9.3)
       y-prosemirror:
         specifier: 'catalog:'
-        version: 1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.19))(yjs@13.6.19)
+        version: 1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       y-websocket:
         specifier: 'catalog:'
-        version: 3.0.0(yjs@13.6.19)
+        version: 3.0.0(yjs@13.6.30)
       yjs:
         specifier: 'catalog:'
-        version: 13.6.19
+        version: 13.6.30
     devDependencies:
       '@hocuspocus/provider':
         specifier: 'catalog:'
-        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.19))(yjs@13.6.19)
+        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@hocuspocus/server':
         specifier: 'catalog:'
-        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.19))(yjs@13.6.19)
+        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@superdoc-dev/superdoc-yjs-collaboration':
         specifier: workspace:*
         version: link:../collaboration-yjs
@@ -22438,8 +22438,8 @@ snapshots:
       '@apidevtools/openapi-schemas': 2.1.0
       '@apidevtools/swagger-methods': 3.0.2
       '@jsdevtools/ono': 7.1.3
-      ajv: 8.17.1
-      ajv-draft-04: 1.0.0(ajv@8.17.1)
+      ajv: 8.18.0
+      ajv-draft-04: 1.0.0(ajv@8.18.0)
       call-me-maybe: 1.0.2
       openapi-types: 7.2.3
 
@@ -25452,6 +25452,18 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  '@hocuspocus/provider@2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)':
+    dependencies:
+      '@hocuspocus/common': 2.15.3
+      '@lifeomic/attempt': 3.1.0
+      lib0: 0.2.117
+      ws: 8.19.0
+      y-protocols: 1.0.7(yjs@13.6.30)
+      yjs: 13.6.30
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   '@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)':
     dependencies:
       '@hocuspocus/common': 3.4.4
@@ -25474,6 +25486,20 @@ snapshots:
       ws: 8.19.0
       y-protocols: 1.0.7(yjs@13.6.19)
       yjs: 13.6.19
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@hocuspocus/server@2.15.3(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)':
+    dependencies:
+      '@hocuspocus/common': 2.15.3
+      async-lock: 1.4.1
+      kleur: 4.1.5
+      lib0: 0.2.117
+      uuid: 11.1.0
+      ws: 8.19.0
+      y-protocols: 1.0.7(yjs@13.6.30)
+      yjs: 13.6.30
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -26407,9 +26433,9 @@ snapshots:
       '@types/fs-extra': 11.0.4
       '@types/node-fetch': 2.6.13
       '@types/strip-bom': 4.0.1
-      ajv: 8.17.1
-      ajv-draft-04: 1.0.0(ajv@8.17.1)
-      ajv-formats: 3.0.1(ajv@8.17.1)
+      ajv: 8.18.0
+      ajv-draft-04: 1.0.0(ajv@8.18.0)
+      ajv-formats: 3.0.1(ajv@8.18.0)
       node-fetch: 2.7.0
       strip-bom: 5.0.0
     transitivePeerDependencies:
@@ -26426,7 +26452,7 @@ snapshots:
   '@microsoft/dev-tunnels-management@1.1.9':
     dependencies:
       '@microsoft/dev-tunnels-contracts': 1.1.9
-      axios: 1.13.2(debug@4.4.3)
+      axios: 1.13.6(debug@4.4.3)
       buffer: 5.7.1
       debug: 4.4.3(supports-color@5.5.0)
       vscode-jsonrpc: 4.0.0
@@ -26448,9 +26474,9 @@ snapshots:
     dependencies:
       '@types/fs-extra': 11.0.4
       '@types/node-fetch': 2.6.13
-      ajv: 8.17.1
-      ajv-draft-04: 1.0.0(ajv@8.17.1)
-      ajv-formats: 3.0.1(ajv@8.17.1)
+      ajv: 8.18.0
+      ajv-draft-04: 1.0.0(ajv@8.18.0)
+      ajv-formats: 3.0.1(ajv@8.18.0)
       fs-extra: 9.1.0
       node-fetch: 2.7.0
     transitivePeerDependencies:
@@ -26492,7 +26518,7 @@ snapshots:
       lodash: 4.17.23
       node-machine-id: 1.1.12
       open: 8.4.2
-      semver: 7.7.3
+      semver: 7.7.4
       tree-kill: 1.2.2
       underscore: 1.13.7
     optionalDependencies:
@@ -26506,7 +26532,7 @@ snapshots:
     dependencies:
       '@azure/core-auth': 1.10.1
       '@microsoft/teams-manifest': 0.1.5
-      axios: 1.13.2(debug@4.4.3)
+      axios: 1.13.6(debug@4.4.3)
       chai: 4.5.0
       jsonschema: 1.5.0
       neverthrow: 3.2.0
@@ -26533,8 +26559,8 @@ snapshots:
       '@microsoft/m365-spec-parser': 0.2.11
       '@microsoft/teamsfx-api': 0.23.1
       adm-zip: 0.5.16
-      ajv: 8.17.1
-      axios: 1.13.2(debug@4.4.3)
+      ajv: 8.18.0
+      axios: 1.13.6(debug@4.4.3)
       axios-retry: 3.9.1
       comment-json: 4.6.2
       cryptr: 6.4.0
@@ -26561,7 +26587,7 @@ snapshots:
       proper-lockfile: 4.1.2
       read-package-json-fast: 2.0.3
       reflect-metadata: 0.1.14
-      semver: 7.7.3
+      semver: 7.7.4
       strip-bom: 4.0.0
       swagger2openapi: 7.0.8
       typedi: 0.10.0
@@ -26813,7 +26839,7 @@ snapshots:
 
   '@mintlify/models@0.0.286':
     dependencies:
-      axios: 1.13.2(debug@4.4.3)
+      axios: 1.13.2
       openapi-types: 12.1.3
     transitivePeerDependencies:
       - debug
@@ -32590,6 +32616,10 @@ snapshots:
     optionalDependencies:
       ajv: 8.17.1
 
+  ajv-draft-04@1.0.0(ajv@8.18.0):
+    optionalDependencies:
+      ajv: 8.18.0
+
   ajv-errors@3.0.0(ajv@8.17.1):
     dependencies:
       ajv: 8.17.1
@@ -33032,7 +33062,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  axios@1.13.2(debug@4.4.3):
+  axios@1.13.2:
     dependencies:
       follow-redirects: 1.15.11(debug@4.4.3)
       form-data: 4.0.5
@@ -33047,7 +33077,6 @@ snapshots:
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
-    optional: true
 
   axobject-query@4.1.0: {}
 
@@ -46174,11 +46203,11 @@ snapshots:
 
   vite@7.3.1(@types/node@22.19.2)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.32.0)(sass@1.97.3)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
-      esbuild: 0.27.2
+      esbuild: 0.27.4
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
-      postcss: 8.5.6
-      rollup: 4.57.1
+      postcss: 8.5.8
+      rollup: 4.59.0
       tinyglobby: 0.2.15
     optionalDependencies:
       '@types/node': 22.19.2
@@ -46193,11 +46222,11 @@ snapshots:
 
   vite@7.3.1(@types/node@22.19.8)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.32.0)(sass@1.97.3)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
-      esbuild: 0.27.2
+      esbuild: 0.27.4
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
-      postcss: 8.5.6
-      rollup: 4.57.1
+      postcss: 8.5.8
+      rollup: 4.59.0
       tinyglobby: 0.2.15
     optionalDependencies:
       '@types/node': 22.19.8
@@ -46914,15 +46943,6 @@ snapshots:
       lib0: 0.2.117
       yjs: 13.6.19
 
-  y-prosemirror@1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.19))(yjs@13.6.19):
-    dependencies:
-      lib0: 0.2.117
-      prosemirror-model: 1.25.4
-      prosemirror-state: 1.4.4
-      prosemirror-view: 1.41.5
-      y-protocols: 1.0.7(yjs@13.6.19)
-      yjs: 13.6.19
-
   y-prosemirror@1.3.7(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30):
     dependencies:
       lib0: 0.2.117
@@ -46947,6 +46967,12 @@ snapshots:
       lib0: 0.2.117
       y-protocols: 1.0.7(yjs@13.6.19)
       yjs: 13.6.19
+
+  y-websocket@3.0.0(yjs@13.6.30):
+    dependencies:
+      lib0: 0.2.117
+      y-protocols: 1.0.7(yjs@13.6.30)
+      yjs: 13.6.30
 
   y18n@5.0.8: {}
 
