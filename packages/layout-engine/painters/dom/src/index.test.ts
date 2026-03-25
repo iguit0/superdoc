@@ -7507,6 +7507,135 @@ describe('ImageFragment (block-level images)', () => {
       expect(metadataAttr).toBeTruthy();
     });
   });
+
+  describe('hyperlink (DrawingML a:hlinkClick)', () => {
+    const makePainter = (hyperlink?: { url: string; tooltip?: string }) => {
+      const block: FlowBlock = {
+        kind: 'image',
+        id: 'linked-img',
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        width: 100,
+        height: 50,
+        ...(hyperlink ? { hyperlink } : {}),
+      };
+      const measure: Measure = { kind: 'image', width: 100, height: 50 };
+      const fragment = {
+        kind: 'image' as const,
+        blockId: 'linked-img',
+        x: 20,
+        y: 20,
+        width: 100,
+        height: 50,
+      };
+      const layout: Layout = {
+        pageSize: { w: 400, h: 300 },
+        pages: [{ number: 1, fragments: [fragment] }],
+      };
+      return createDomPainter({ blocks: [block], measures: [measure] });
+    };
+
+    it('wraps linked image in <a class="superdoc-link"> with correct href', () => {
+      const painter = makePainter({ url: 'https://example.com' });
+      const layout: Layout = {
+        pageSize: { w: 400, h: 300 },
+        pages: [
+          {
+            number: 1,
+            fragments: [
+              {
+                kind: 'image' as const,
+                blockId: 'linked-img',
+                x: 20,
+                y: 20,
+                width: 100,
+                height: 50,
+              },
+            ],
+          },
+        ],
+      };
+      painter.paint(layout, mount);
+
+      const fragmentEl = mount.querySelector('.superdoc-image-fragment');
+      expect(fragmentEl).toBeTruthy();
+
+      const anchor = fragmentEl?.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      expect(anchor).toBeTruthy();
+      expect(anchor?.href).toBe('https://example.com/');
+      expect(anchor?.target).toBe('_blank');
+      expect(anchor?.rel).toContain('noopener');
+      expect(anchor?.getAttribute('role')).toBe('link');
+    });
+
+    it('sets tooltip as title attribute when present', () => {
+      const block: FlowBlock = {
+        kind: 'image',
+        id: 'tip-img',
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        width: 100,
+        height: 50,
+        hyperlink: { url: 'https://example.com', tooltip: 'Go here' },
+      };
+      const measure: Measure = { kind: 'image', width: 100, height: 50 };
+      const fragment = { kind: 'image' as const, blockId: 'tip-img', x: 0, y: 0, width: 100, height: 50 };
+      const layout: Layout = {
+        pageSize: { w: 400, h: 300 },
+        pages: [{ number: 1, fragments: [fragment] }],
+      };
+      const painter = createDomPainter({ blocks: [block], measures: [measure] });
+      painter.paint(layout, mount);
+
+      const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      expect(anchor?.title).toBe('Go here');
+    });
+
+    it('does NOT wrap unlinked image in anchor', () => {
+      const block: FlowBlock = {
+        kind: 'image',
+        id: 'plain-img',
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        width: 100,
+        height: 50,
+      };
+      const measure: Measure = { kind: 'image', width: 100, height: 50 };
+      const fragment = { kind: 'image' as const, blockId: 'plain-img', x: 0, y: 0, width: 100, height: 50 };
+      const layout: Layout = {
+        pageSize: { w: 400, h: 300 },
+        pages: [{ number: 1, fragments: [fragment] }],
+      };
+      const painter = createDomPainter({ blocks: [block], measures: [measure] });
+      painter.paint(layout, mount);
+
+      const anchor = mount.querySelector('a.superdoc-link');
+      expect(anchor).toBeNull();
+
+      // Image element should still be present
+      const img = mount.querySelector('.superdoc-image-fragment img');
+      expect(img).toBeTruthy();
+    });
+
+    it('does NOT wrap image when hyperlink URL fails sanitization', () => {
+      const block: FlowBlock = {
+        kind: 'image',
+        id: 'unsafe-img',
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        width: 100,
+        height: 50,
+        hyperlink: { url: 'javascript:alert(1)' },
+      };
+      const measure: Measure = { kind: 'image', width: 100, height: 50 };
+      const fragment = { kind: 'image' as const, blockId: 'unsafe-img', x: 0, y: 0, width: 100, height: 50 };
+      const layout: Layout = {
+        pageSize: { w: 400, h: 300 },
+        pages: [{ number: 1, fragments: [fragment] }],
+      };
+      const painter = createDomPainter({ blocks: [block], measures: [measure] });
+      painter.paint(layout, mount);
+
+      const anchor = mount.querySelector('a.superdoc-link');
+      expect(anchor).toBeNull();
+    });
+  });
 });
 
 describe('URL sanitization security', () => {

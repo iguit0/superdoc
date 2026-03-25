@@ -313,6 +313,18 @@ export function imageNodeToBlock(
     ...(rotation !== undefined && { rotation }),
     ...(flipH !== undefined && { flipH }),
     ...(flipV !== undefined && { flipV }),
+    // Image hyperlink from OOXML a:hlinkClick
+    ...(() => {
+      const hlAttr = isPlainObject(attrs.hyperlink) ? attrs.hyperlink : undefined;
+      if (hlAttr && typeof hlAttr.url === 'string' && hlAttr.url.trim()) {
+        const hyperlink: { url: string; tooltip?: string } = { url: hlAttr.url as string };
+        if (typeof hlAttr.tooltip === 'string' && (hlAttr.tooltip as string).trim()) {
+          hyperlink.tooltip = hlAttr.tooltip as string;
+        }
+        return { hyperlink };
+      }
+      return {};
+    })(),
   };
 }
 

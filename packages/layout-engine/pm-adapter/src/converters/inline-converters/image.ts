@@ -166,6 +166,15 @@ export function imageNodeToRun({ node, positions, sdtMetadata }: InlineConverter
     };
   }
 
+  // Image hyperlink from OOXML a:hlinkClick
+  const hlAttr = isPlainObject(attrs.hyperlink) ? attrs.hyperlink : undefined;
+  if (hlAttr && typeof hlAttr.url === 'string' && hlAttr.url.trim()) {
+    run.hyperlink = { url: hlAttr.url as string };
+    if (typeof hlAttr.tooltip === 'string' && (hlAttr.tooltip as string).trim()) {
+      run.hyperlink.tooltip = hlAttr.tooltip as string;
+    }
+  }
+
   return run;
 }
 

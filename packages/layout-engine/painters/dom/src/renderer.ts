@@ -3668,7 +3668,10 @@ export class DomPainter {
       if (filters.length > 0) {
         img.style.filter = filters.join(' ');
       }
-      fragmentEl.appendChild(img);
+
+      // Wrap in anchor when block has a DrawingML hyperlink (a:hlinkClick)
+      const imageChild = this.buildImageHyperlinkAnchor(img, block.hyperlink, 'block');
+      fragmentEl.appendChild(imageChild);
 
       return fragmentEl;
     } catch (error) {
@@ -3677,11 +3680,63 @@ export class DomPainter {
     }
   }
 
-  private renderDrawingFragment(
-    fragment: DrawingFragment,
-    context: FragmentRenderContext,
-    resolvedItem?: ResolvedDrawingItem,
+  /**
+   * Optionally wrap an image element in an anchor for DrawingML hyperlinks (a:hlinkClick).
+   *
+   * When `hyperlink` is present and its URL passes sanitization, returns an
+   * `<a class="superdoc-link">` wrapping `imageEl`. The existing EditorInputManager
+   * click-delegation on `a.superdoc-link` handles both viewing-mode navigation and
+   * editing-mode event dispatch automatically, with no extra wiring needed here.
+   *
+   * When `hyperlink` is absent or the URL fails sanitization the original element
+   * is returned unchanged.
+   *
+   * @param imageEl   - The image element (img or span wrapper) to potentially wrap.
+   * @param hyperlink - Hyperlink metadata from the ImageBlock/ImageRun, or undefined.
+   * @param display   - CSS display value for the anchor: 'block' for fragment images,
+   *                    'inline-block' for inline runs.
+   */
+  private buildImageHyperlinkAnchor(
+    imageEl: HTMLElement,
+    hyperlink: { url: string; tooltip?: string } | undefined,
+    display: 'block' | 'inline-block',
   ): HTMLElement {
+    if (!hyperlink?.url || !this.doc) return imageEl;
+
+    const sanitized = sanitizeHref(hyperlink.url);
+    if (!sanitized?.href) return imageEl;
+
+    const anchor = this.doc.createElement('a');
+    anchor.href = sanitized.href;
+    anchor.classList.add('superdoc-link');
+
+    if (sanitized.protocol === 'http' || sanitized.protocol === 'https') {
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+    }
+    if (hyperlink.tooltip) {
+      anchor.title = hyperlink.tooltip;
+    }
+
+    // Accessibility: explicit role and keyboard focus (mirrors applyLinkAttributes for text links)
+    anchor.setAttribute('role', 'link');
+    anchor.setAttribute('tabindex', '0');
+
+    if (display === 'block') {
+      anchor.style.cssText = 'display: block; width: 100%; height: 100%; cursor: pointer;';
+    } else {
+      // inline-block preserves the image's layout box inside a paragraph line
+      anchor.style.display = 'inline-block';
+      anchor.style.lineHeight = '0';
+      anchor.style.cursor = 'pointer';
+      anchor.style.verticalAlign = imageEl.style.verticalAlign || 'bottom';
+    }
+
+    anchor.appendChild(imageEl);
+    return anchor;
+  }
+
+  private renderDrawingFragment(fragment: DrawingFragment, context: FragmentRenderContext, resolvedItem?: ResolvedDrawingItem,): HTMLElement {
     try {
       // Use pre-extracted block from resolved item; fall back to blockLookup when resolved item
       // is a legacy ResolvedFragmentItem without the block field.
@@ -5246,7 +5301,7 @@ export class DomPainter {
       this.applySdtDataset(wrapper, run.sdt);
       if (run.dataAttrs) applyRunDataAttributes(wrapper, run.dataAttrs);
       wrapper.appendChild(img);
-      return wrapper;
+      return this.buildImageHyperlinkAnchor(wrapper, run.hyperlink, 'inline-block');
     }
 
     // Apply PM position tracking for cursor placement (only on img when not wrapped)
@@ -5301,10 +5356,10 @@ export class DomPainter {
       this.applySdtDataset(wrapper, run.sdt);
 
       wrapper.appendChild(img);
-      return wrapper;
+      return this.buildImageHyperlinkAnchor(wrapper, run.hyperlink, 'inline-block');
     }
 
-    return img;
+    return this.buildImageHyperlinkAnchor(img, run.hyperlink, 'inline-block');
   }
 
   /**
