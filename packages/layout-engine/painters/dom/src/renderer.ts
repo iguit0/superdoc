@@ -47,6 +47,7 @@ import type {
   TrackedChangesMode,
   VectorShapeDrawing,
   VectorShapeStyle,
+  ResolvedLayout,
 } from '@superdoc/contracts';
 import { calculateJustifySpacing, computeLinePmRange, shouldApplyJustify, SPACE_CHARS } from '@superdoc/contracts';
 import { toCssFontFamily } from '@superdoc/font-utils';
@@ -1150,6 +1151,8 @@ export class DomPainter {
   private activeCommentId: string | null = null;
   private paintSnapshotBuilder: PaintSnapshotBuilder | null = null;
   private lastPaintSnapshot: PaintSnapshot | null = null;
+  /** Resolved layout for the next-gen paint pipeline (stored but not yet consumed). */
+  private resolvedLayout: ResolvedLayout | null = null;
 
   constructor(blocks: FlowBlock[], measures: Measure[], options: PainterOptions = {}) {
     this.options = options;
@@ -1278,6 +1281,14 @@ export class DomPainter {
    */
   public getActiveComment(): string | null {
     return this.activeCommentId;
+  }
+
+  /**
+   * Stores the resolved layout for the next-generation paint pipeline.
+   * In PR4 this is stored but not yet consumed by paint().
+   */
+  public setResolvedLayout(resolvedLayout: ResolvedLayout | null): void {
+    this.resolvedLayout = resolvedLayout;
   }
 
   /**
