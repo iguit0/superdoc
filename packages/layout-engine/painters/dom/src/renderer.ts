@@ -7490,6 +7490,12 @@ export const sliceRunsForLine = (block: ParagraphBlock, line: Line): Run[] => {
       continue;
     }
 
+    // MathRun handling - math runs are atomic units like images
+    if (run.kind === 'math') {
+      result.push(run);
+      continue;
+    }
+
     // At this point, run must be TextRun (has .text property)
     if (!('text' in run)) {
       continue;
