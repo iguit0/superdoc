@@ -75,6 +75,7 @@ tests/layout-snapshots
 tests/layout/candidate/
 tests/layout/reference/
 tests/layout/reports/
+tmp/layout-compare/
 test-corpus/
 .pnpm-store
 devtools/visual-testing/pnpm-lock.yaml
