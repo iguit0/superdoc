@@ -64,6 +64,7 @@
     "layout:snapshots:npm": "bun tests/layout/export-layout-snapshots-npm.mjs",
     "layout:compare": "bun tests/layout/compare-layout-snapshots.mjs",
     "corpus:pull": "node scripts/corpus/pull.mjs",
+    "corpus:delete": "node scripts/corpus/delete.mjs",
     "corpus:push": "node scripts/corpus/push.mjs",
     "corpus:update-registry": "node scripts/corpus/update-registry.mjs",
     "watch": "pnpm --prefix packages/superdoc run watch:es",

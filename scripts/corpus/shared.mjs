@@ -244,7 +244,7 @@ async function importAwsSdkClient() {
 
 async function createS3R2Client(config) {
   const sdk = await importAwsSdkClient();
-  const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } = sdk;
+  const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } = sdk;
 
   const s3 = new S3Client({
     region: 'auto',
@@ -304,6 +304,14 @@ async function createS3R2Client(config) {
       const body = fs.readFileSync(filePath);
       await this.putObjectBuffer(key, body, contentType);
     },
+    async deleteObject(key) {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: bucketName,
+          Key: key,
+        }),
+      );
+    },
     destroy() {
       s3.destroy();
     },
@@ -354,6 +362,10 @@ async function createWranglerR2Client() {
     await runWrangler(args, { accountId });
   };
 
+  const deleteObject = async (key) => {
+    await runWrangler(['r2', 'object', 'delete', `${bucketName}/${key}`, '--remote'], { accountId });
+  };
+
   return {
     accountId,
     bucketName,
@@ -384,6 +396,9 @@ async function createWranglerR2Client() {
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
+    },
+    async deleteObject(key) {
+      return deleteObject(key);
     },
     destroy() {
       // no-op
