@@ -1,9 +1,11 @@
 import { NodeSelection, Selection, TextSelection } from 'prosemirror-state';
 import { ContextMenuPluginKey } from '@extensions/context-menu/context-menu.js';
 import { CellSelection } from 'prosemirror-tables';
+import { CommentHighlightDecorator } from './dom/CommentHighlightDecorator.js';
 import { DecorationBridge } from './dom/DecorationBridge.js';
 import { ProofingSessionManager } from './proofing/ProofingSessionManager.js';
-import { applyProofingDecorations, clearProofingDecorations, createDomPainter } from '@superdoc/painter-dom';
+import { PresentationPainterAdapter } from './rendering/PresentationPainterAdapter.js';
+import { applyProofingDecorations, clearProofingDecorations } from '@superdoc/painter-dom';
 import { resolveLayout } from '@superdoc/layout-resolved';
 import type { DomPainterInput, ProofingAnnotation, LayoutMode, PaintSnapshot } from '@superdoc/painter-dom';
 import type { ProofingConfig, ProofingPaintSlice } from './proofing/types.js';
@@ -305,7 +307,7 @@ export class PresentationEditor extends EventEmitter {
   #flowBlockCache: FlowBlockCache = new FlowBlockCache();
   #footnoteNumberSignature: string | null = null;
   #endnoteNumberSignature: string | null = null;
-  #domPainter: ReturnType<typeof createDomPainter> | null = null;
+  #painterAdapter = new PresentationPainterAdapter();
   #pageGeometryHelper: PageGeometryHelper | null = null;
   #dragDropManager: DragDropManager | null = null;
   #layoutError: LayoutError | null = null;
@@ -334,6 +336,8 @@ export class PresentationEditor extends EventEmitter {
   #domIndexObserverManager: DomPositionIndexObserverManager | null = null;
   /** Bridges external PM plugin decorations onto painted DOM elements. */
   #decorationBridge = new DecorationBridge();
+  /** Applies comment highlight styles to painter-rendered DOM post-paint. */
+  #commentHighlightDecorator = new CommentHighlightDecorator();
   /** Proofing session manager — handles provider lifecycle, scheduling, and store. */
   #proofingManager: ProofingSessionManager | null = null;
   /** RAF handle for coalesced decoration sync scheduling. */
@@ -477,6 +481,7 @@ export class PresentationEditor extends EventEmitter {
     this.#painterHost.className = 'presentation-editor__pages';
     this.#painterHost.style.transformOrigin = 'top left';
     this.#viewportHost.appendChild(this.#painterHost);
+    this.#commentHighlightDecorator.setContainer(this.#painterHost);
 
     // Add event listeners for structured content hover coordination
     this.#painterHost.addEventListener('mouseover', this.#handleStructuredContentBlockMouseEnter);
@@ -488,7 +493,7 @@ export class PresentationEditor extends EventEmitter {
       getPainterHost: () => this.#painterHost,
       onRebuild: () => {
         this.#rebuildDomPositionIndex();
-        this.#syncDecorations();
+        this.#syncInlineStyleLayers();
         this.#selectionSync.requestRender({ immediate: true });
       },
     });
@@ -1903,7 +1908,7 @@ export class PresentationEditor extends EventEmitter {
    * Return a snapshot of painter output captured during the latest paint cycle.
    */
   getPaintSnapshot(): PaintSnapshot | null {
-    return this.#domPainter?.getPaintSnapshot?.() ?? null;
+    return this.#painterAdapter.getPaintSnapshot();
   }
 
   /**
@@ -1995,7 +2000,7 @@ export class PresentationEditor extends EventEmitter {
         enabled: false,
       };
     }
-    this.#domPainter = null;
+    this.#painterAdapter.reset();
     this.#pageGeometryHelper = null;
     this.#pendingDocChange = true;
     this.#scheduleRerender();
@@ -2747,7 +2752,7 @@ export class PresentationEditor extends EventEmitter {
     this.#layoutOptions.zoom = zoom;
     this.#applyZoom();
     // Notify DomPainter so virtualization accounts for the CSS transform scale
-    this.#domPainter?.setZoom?.(zoom);
+    this.#painterAdapter.setZoom(zoom);
     this.emit('zoomChange', { zoom });
     this.#shouldScrollSelectionIntoView = true;
     this.#scheduleSelectionUpdate();
@@ -2792,6 +2797,7 @@ export class PresentationEditor extends EventEmitter {
       }, 'Decoration sync RAF');
     }
     this.#decorationBridge.destroy();
+    this.#commentHighlightDecorator.destroy();
     this.#proofingManager?.dispose();
     this.#proofingManager = null;
 
@@ -2876,7 +2882,7 @@ export class PresentationEditor extends EventEmitter {
     // Clear flow block cache to free memory
     this.#flowBlockCache.clear();
 
-    this.#domPainter = null;
+    this.#painterAdapter.reset();
     this.#pageGeometryHelper = null;
     this.#dragDropManager?.destroy();
     this.#dragDropManager = null;
@@ -3056,6 +3062,27 @@ export class PresentationEditor extends EventEmitter {
     });
 
     this.#proofingManager.onDocumentChanged(doc, changedRanges, transaction.mapping);
+  }
+
+  /**
+   * Applies comment highlight styles (background color, box-shadow,
+   * track-change-focused class) to all painter-rendered comment elements.
+   * Called after paint and after observer rebuild.
+   */
+  #syncCommentHighlights(): void {
+    this.#commentHighlightDecorator.apply();
+  }
+
+  /**
+   * Applies every inline style layer that decorates painter-owned DOM elements.
+   *
+   * Comment highlights intentionally run before the decoration bridge because
+   * bridged inline decorations may own the same CSS properties and must be
+   * restored last.
+   */
+  #syncInlineStyleLayers(): void {
+    this.#syncCommentHighlights();
+    this.#syncDecorations();
   }
 
   /**
@@ -3321,18 +3348,18 @@ export class PresentationEditor extends EventEmitter {
       event: 'collaborationReady',
       handler: handleCollaborationReady as (...args: unknown[]) => void,
     });
-    // Listen for comment selection changes to update Layout Engine highlighting
+    // Listen for comment selection changes and re-run the inline style layering
+    // pipeline on the existing DOM. This avoids a full layout → paint cycle
+    // while still restoring bridge-owned inline decoration styles afterward.
     const handleCommentsUpdate = (payload: { activeCommentId?: string | null }) => {
-      if (this.#domPainter?.setActiveComment) {
-        // Only update active comment when the field is explicitly present in the payload.
-        // This prevents unrelated events (like tracked change updates) from clearing
-        // the active comment selection unexpectedly.
-        if ('activeCommentId' in payload) {
-          const activeId = payload.activeCommentId ?? null;
-          this.#domPainter.setActiveComment(activeId);
-          // Mark as needing re-render to apply the new active comment highlighting
-          this.#pendingDocChange = true;
-          this.#scheduleRerender();
+      // Only update active comment when the field is explicitly present in the payload.
+      // This prevents unrelated events (like tracked change updates) from clearing
+      // the active comment selection unexpectedly.
+      if ('activeCommentId' in payload) {
+        const activeId = payload.activeCommentId ?? null;
+        const didChange = this.#commentHighlightDecorator.setActiveComment(activeId);
+        if (didChange) {
+          this.#syncInlineStyleLayers();
         }
       }
     };
@@ -3491,7 +3518,7 @@ export class PresentationEditor extends EventEmitter {
     // Scroll handler for virtualization - find the actual scroll container
     // by walking up the DOM tree to find the first scrollable ancestor
     this.#scrollHandler = () => {
-      this.#domPainter?.onScroll?.();
+      this.#painterAdapter.onScroll();
     };
 
     // Find the scrollable ancestor and attach listener there
@@ -3586,7 +3613,7 @@ export class PresentationEditor extends EventEmitter {
     if (next instanceof Element) {
       next.addEventListener('scroll', this.#scrollHandler!, { passive: true });
     }
-    this.#domPainter?.setScrollContainer?.(next instanceof HTMLElement ? next : null);
+    this.#painterAdapter.setScrollContainer(next instanceof HTMLElement ? next : null);
   }
 
   /**
@@ -4282,9 +4309,9 @@ export class PresentationEditor extends EventEmitter {
         this.#updateDecorationProviders(layout);
       }
 
-      const painter = this.#ensurePainter();
+      this.#ensurePainter();
       if (!isSemanticFlow) {
-        painter.setProviders(
+        this.#painterAdapter.setProviders(
           this.#headerFooterSession?.headerDecorationProvider,
           this.#headerFooterSession?.footerDecorationProvider,
         );
@@ -4348,12 +4375,12 @@ export class PresentationEditor extends EventEmitter {
         footerBlocks: footerBlocks.length > 0 ? footerBlocks : undefined,
         footerMeasures: footerMeasures.length > 0 ? footerMeasures : undefined,
       };
-      painter.paint(paintInput, this.#painterHost, mapping ?? undefined);
+      this.#painterAdapter.paint(paintInput, this.#painterHost, mapping ?? undefined);
       const painterPaintEnd = perfNow();
       perfLog(`[Perf] painter.paint: ${(painterPaintEnd - painterPaintStart).toFixed(2)}ms`);
       const painterPostStart = perfNow();
       this.#rebuildDomPositionIndex();
-      this.#syncDecorations();
+      this.#syncInlineStyleLayers();
       this.#applyProofingPass();
       this.#domIndexObserverManager?.resume();
       const painterPostEnd = perfNow();
@@ -4408,39 +4435,41 @@ export class PresentationEditor extends EventEmitter {
     }
   }
 
-  #ensurePainter() {
-    if (!this.#domPainter) {
-      // Ensure the virtualization gap matches the effective page gap so that
-      // DomPainter's spacer/offset math stays consistent with #applyZoom() height calculations.
-      const virtualization = this.#layoutOptions.virtualization;
-      const effectiveGap = this.#getEffectivePageGap();
-      const normalizedVirtualization = virtualization?.enabled
-        ? { ...virtualization, gap: virtualization.gap ?? effectiveGap }
-        : virtualization;
-
-      this.#domPainter = createDomPainter({
-        layoutMode: this.#layoutOptions.layoutMode ?? 'vertical',
-        flowMode: this.#layoutOptions.flowMode ?? 'paginated',
-        virtualization: normalizedVirtualization,
-        pageStyles: this.#layoutOptions.pageStyles,
-        headerProvider: this.#headerFooterSession?.headerDecorationProvider,
-        footerProvider: this.#headerFooterSession?.footerDecorationProvider,
-        ruler: this.#layoutOptions.ruler,
-        pageGap: this.#layoutState.layout?.pageGap ?? effectiveGap,
-      });
-      // Pass the current zoom so virtualization accounts for the CSS transform scale
-      const currentZoom = this.#layoutOptions.zoom ?? 1;
-      if (currentZoom !== 1) {
-        this.#domPainter.setZoom(currentZoom);
-      }
-      // Pass the scroll container so virtualization computes scrollY relative to it,
-      // not the browser viewport. This fixes offset errors when SuperDoc is mounted
-      // inside a wrapper div with overflow-y: auto.
-      if (this.#scrollContainer && this.#scrollContainer instanceof HTMLElement) {
-        this.#domPainter.setScrollContainer?.(this.#scrollContainer);
-      }
+  #ensurePainter(): void {
+    if (this.#painterAdapter.hasPainter) {
+      return;
     }
-    return this.#domPainter;
+
+    // Ensure the virtualization gap matches the effective page gap so that
+    // DomPainter's spacer/offset math stays consistent with #applyZoom() height calculations.
+    const virtualization = this.#layoutOptions.virtualization;
+    const effectiveGap = this.#getEffectivePageGap();
+    const normalizedVirtualization = virtualization?.enabled
+      ? { ...virtualization, gap: virtualization.gap ?? effectiveGap }
+      : virtualization;
+
+    this.#painterAdapter.ensurePainter({
+      layoutMode: this.#layoutOptions.layoutMode ?? 'vertical',
+      flowMode: this.#layoutOptions.flowMode ?? 'paginated',
+      virtualization: normalizedVirtualization,
+      pageStyles: this.#layoutOptions.pageStyles,
+      headerProvider: this.#headerFooterSession?.headerDecorationProvider,
+      footerProvider: this.#headerFooterSession?.footerDecorationProvider,
+      ruler: this.#layoutOptions.ruler,
+      pageGap: this.#layoutState.layout?.pageGap ?? effectiveGap,
+    });
+
+    // Pass the current zoom so virtualization accounts for the CSS transform scale
+    const currentZoom = this.#layoutOptions.zoom ?? 1;
+    if (currentZoom !== 1) {
+      this.#painterAdapter.setZoom(currentZoom);
+    }
+    // Pass the scroll container so virtualization computes scrollY relative to it,
+    // not the browser viewport. This fixes offset errors when SuperDoc is mounted
+    // inside a wrapper div with overflow-y: auto.
+    if (this.#scrollContainer && this.#scrollContainer instanceof HTMLElement) {
+      this.#painterAdapter.setScrollContainer(this.#scrollContainer);
+    }
   }
 
   #applyHtmlAnnotationMeasurements(blocks: FlowBlock[]) {
@@ -5571,8 +5600,7 @@ export class PresentationEditor extends EventEmitter {
     if (!this.#isSelectionAwareVirtualizationEnabled()) {
       return;
     }
-    const painter = this.#domPainter;
-    if (!painter || typeof painter.setVirtualizationPins !== 'function') {
+    if (!this.#painterAdapter.hasPainter) {
       return;
     }
     const layout = this.#layoutState.layout;
@@ -5603,7 +5631,7 @@ export class PresentationEditor extends EventEmitter {
       extraPages: options?.extraPages,
     });
 
-    painter.setVirtualizationPins(pins);
+    this.#painterAdapter.setVirtualizationPins(pins);
   }
 
   #finalizeDragSelectionWithDom(
