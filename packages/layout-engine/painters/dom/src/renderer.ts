@@ -3715,7 +3715,10 @@ export class DomPainter {
       anchor.rel = 'noopener noreferrer';
     }
     if (hyperlink.tooltip) {
-      anchor.title = hyperlink.tooltip;
+      const tooltipResult = encodeTooltip(hyperlink.tooltip);
+      if (tooltipResult?.text) {
+        anchor.title = tooltipResult.text;
+      }
     }
 
     // Accessibility: explicit role and keyboard focus (mirrors applyLinkAttributes for text links)
@@ -3736,7 +3739,11 @@ export class DomPainter {
     return anchor;
   }
 
-  private renderDrawingFragment(fragment: DrawingFragment, context: FragmentRenderContext, resolvedItem?: ResolvedDrawingItem,): HTMLElement {
+  private renderDrawingFragment(
+    fragment: DrawingFragment,
+    context: FragmentRenderContext,
+    resolvedItem?: ResolvedDrawingItem,
+  ): HTMLElement {
     try {
       // Use pre-extracted block from resolved item; fall back to blockLookup when resolved item
       // is a legacy ResolvedFragmentItem without the block field.

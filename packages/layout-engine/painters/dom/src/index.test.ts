@@ -5996,6 +5996,58 @@ describe('DomPainter', () => {
   });
 
   describe('renderImageRun (inline image runs)', () => {
+    const renderInlineImageRun = (
+      run: Extract<FlowBlock, { kind: 'paragraph' }>['runs'][number],
+      lineWidth = 100,
+      lineHeight = 100,
+    ) => {
+      const imageBlock: FlowBlock = {
+        kind: 'paragraph',
+        id: 'img-block',
+        runs: [run],
+      };
+
+      const imageMeasure: Measure = {
+        kind: 'paragraph',
+        lines: [
+          {
+            fromRun: 0,
+            fromChar: 0,
+            toRun: 0,
+            toChar: 0,
+            width: lineWidth,
+            ascent: lineHeight,
+            descent: 0,
+            lineHeight,
+          },
+        ],
+        totalHeight: lineHeight,
+      };
+
+      const imageLayout: Layout = {
+        pageSize: { w: 400, h: 500 },
+        pages: [
+          {
+            number: 1,
+            fragments: [
+              {
+                kind: 'para',
+                blockId: 'img-block',
+                fromLine: 0,
+                toLine: 1,
+                x: 0,
+                y: 0,
+                width: lineWidth,
+              },
+            ],
+          },
+        ],
+      };
+
+      const painter = createDomPainter({ blocks: [imageBlock], measures: [imageMeasure] });
+      painter.paint(imageLayout, mount);
+    };
+
     it('renders img element with valid data URL', () => {
       const imageBlock: FlowBlock = {
         kind: 'paragraph',
@@ -6462,6 +6514,64 @@ describe('DomPainter', () => {
 
       const img = mount.querySelector('img');
       expect(img).toBeNull();
+    });
+
+    it('wraps linked inline image in anchor without clipPath', () => {
+      renderInlineImageRun({
+        kind: 'image',
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        width: 100,
+        height: 100,
+        hyperlink: { url: 'https://example.com/inline', tooltip: ' Inline tooltip ' },
+      });
+
+      const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      expect(anchor).toBeTruthy();
+      expect(anchor?.href).toBe('https://example.com/inline');
+      expect(anchor?.title).toBe('Inline tooltip');
+      expect(anchor?.firstElementChild?.tagName).toBe('IMG');
+    });
+
+    it('wraps linked inline image clip wrapper in anchor when clipPath uses positive dimensions', () => {
+      renderInlineImageRun(
+        {
+          kind: 'image',
+          src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          width: 80,
+          height: 60,
+          clipPath: 'inset(10% 20% 30% 40%)',
+          hyperlink: { url: 'https://example.com/clip-wrapper' },
+        },
+        80,
+        60,
+      );
+
+      const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      expect(anchor).toBeTruthy();
+      expect(anchor?.querySelector('.superdoc-inline-image-clip-wrapper')).toBeTruthy();
+      expect(anchor?.querySelector('.superdoc-inline-image-clip-wrapper img')).toBeTruthy();
+    });
+
+    it('wraps linked inline image clip wrapper in anchor when clipPath falls back to wrapper return path', () => {
+      renderInlineImageRun(
+        {
+          kind: 'image',
+          src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          width: 0,
+          height: 60,
+          clipPath: 'inset(10% 20% 30% 40%)',
+          hyperlink: { url: 'https://example.com/fallback-wrapper' },
+        },
+        1,
+        60,
+      );
+
+      const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      const wrapper = anchor?.querySelector('.superdoc-inline-image-clip-wrapper') as HTMLElement | null;
+      expect(anchor).toBeTruthy();
+      expect(wrapper).toBeTruthy();
+      expect(wrapper?.style.width).toBe('0px');
+      expect(wrapper?.querySelector('img')).toBeTruthy();
     });
 
     it('renders cropped inline image with clipPath in wrapper (overflow hidden, img with clip-path and transform)', () => {
@@ -7519,18 +7629,6 @@ describe('ImageFragment (block-level images)', () => {
         ...(hyperlink ? { hyperlink } : {}),
       };
       const measure: Measure = { kind: 'image', width: 100, height: 50 };
-      const fragment = {
-        kind: 'image' as const,
-        blockId: 'linked-img',
-        x: 20,
-        y: 20,
-        width: 100,
-        height: 50,
-      };
-      const layout: Layout = {
-        pageSize: { w: 400, h: 300 },
-        pages: [{ number: 1, fragments: [fragment] }],
-      };
       return createDomPainter({ blocks: [block], measures: [measure] });
     };
 
@@ -7567,14 +7665,14 @@ describe('ImageFragment (block-level images)', () => {
       expect(anchor?.getAttribute('role')).toBe('link');
     });
 
-    it('sets tooltip as title attribute when present', () => {
+    it('encodes tooltip before setting title attribute', () => {
       const block: FlowBlock = {
         kind: 'image',
         id: 'tip-img',
         src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         width: 100,
         height: 50,
-        hyperlink: { url: 'https://example.com', tooltip: 'Go here' },
+        hyperlink: { url: 'https://example.com', tooltip: `  ${'x'.repeat(600)}  ` },
       };
       const measure: Measure = { kind: 'image', width: 100, height: 50 };
       const fragment = { kind: 'image' as const, blockId: 'tip-img', x: 0, y: 0, width: 100, height: 50 };
@@ -7586,7 +7684,7 @@ describe('ImageFragment (block-level images)', () => {
       painter.paint(layout, mount);
 
       const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
-      expect(anchor?.title).toBe('Go here');
+      expect(anchor?.title).toBe('x'.repeat(500));
     });
 
     it('does NOT wrap unlinked image in anchor', () => {

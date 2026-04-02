@@ -8,7 +8,13 @@ import type { ImageBlock, BoxSpacing, ImageAnchor } from '@superdoc/contracts';
 import type { PMNode, BlockIdGenerator, PositionMap, NodeHandlerContext, TrackedChangesConfig } from '../types.js';
 import { collectTrackedChangeFromMarks } from '../marks/index.js';
 import { shouldHideTrackedNode, annotateBlockWithTrackedChange } from '../tracked-changes.js';
-import { isFiniteNumber, pickNumber, normalizeZIndex, resolveFloatingZIndex } from '../utilities.js';
+import {
+  isFiniteNumber,
+  pickNumber,
+  normalizeZIndex,
+  resolveFloatingZIndex,
+  readImageHyperlink,
+} from '../utilities.js';
 
 // ============================================================================
 // Constants
@@ -280,6 +286,7 @@ export function imageNodeToBlock(
   const rotation = typeof transformData?.rotation === 'number' ? transformData.rotation : undefined;
   const flipH = typeof transformData?.horizontalFlip === 'boolean' ? transformData.horizontalFlip : undefined;
   const flipV = typeof transformData?.verticalFlip === 'boolean' ? transformData.verticalFlip : undefined;
+  const hyperlink = readImageHyperlink(attrs.hyperlink);
   return {
     kind: 'image',
     id: nextBlockId('image'),
@@ -313,18 +320,7 @@ export function imageNodeToBlock(
     ...(rotation !== undefined && { rotation }),
     ...(flipH !== undefined && { flipH }),
     ...(flipV !== undefined && { flipV }),
-    // Image hyperlink from OOXML a:hlinkClick
-    ...(() => {
-      const hlAttr = isPlainObject(attrs.hyperlink) ? attrs.hyperlink : undefined;
-      if (hlAttr && typeof hlAttr.url === 'string' && hlAttr.url.trim()) {
-        const hyperlink: { url: string; tooltip?: string } = { url: hlAttr.url as string };
-        if (typeof hlAttr.tooltip === 'string' && (hlAttr.tooltip as string).trim()) {
-          hyperlink.tooltip = hlAttr.tooltip as string;
-        }
-        return { hyperlink };
-      }
-      return {};
-    })(),
+    ...(hyperlink ? { hyperlink } : {}),
   };
 }
 
