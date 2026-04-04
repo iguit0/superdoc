@@ -6522,14 +6522,34 @@ describe('DomPainter', () => {
         src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         width: 100,
         height: 100,
+        title: 'Image',
         hyperlink: { url: 'https://example.com/inline', tooltip: ' Inline tooltip ' },
       });
 
       const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      const img = anchor?.querySelector('img') as HTMLImageElement | null;
       expect(anchor).toBeTruthy();
       expect(anchor?.href).toBe('https://example.com/inline');
       expect(anchor?.title).toBe('Inline tooltip');
+      expect(img?.getAttribute('title')).toBeNull();
       expect(anchor?.firstElementChild?.tagName).toBe('IMG');
+    });
+
+    it('falls back to hyperlink URL for linked inline image title', () => {
+      renderInlineImageRun({
+        kind: 'image',
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        width: 100,
+        height: 100,
+        title: 'Image',
+        hyperlink: { url: 'https://superdoc.dev' },
+      });
+
+      const anchor = mount.querySelector('a.superdoc-link') as HTMLAnchorElement | null;
+      const img = anchor?.querySelector('img') as HTMLImageElement | null;
+      expect(anchor).toBeTruthy();
+      expect(anchor?.title).toBe('https://superdoc.dev');
+      expect(img?.getAttribute('title')).toBeNull();
     });
 
     it('wraps linked inline image clip wrapper in anchor when clipPath uses positive dimensions', () => {

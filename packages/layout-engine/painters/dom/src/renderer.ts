@@ -3714,11 +3714,16 @@ export class DomPainter {
       anchor.target = '_blank';
       anchor.rel = 'noopener noreferrer';
     }
-    if (hyperlink.tooltip) {
-      const tooltipResult = encodeTooltip(hyperlink.tooltip);
-      if (tooltipResult?.text) {
-        anchor.title = tooltipResult.text;
-      }
+
+    const tooltipSource =
+      typeof hyperlink.tooltip === 'string' && hyperlink.tooltip.trim().length > 0 ? hyperlink.tooltip : hyperlink.url;
+    const tooltipResult = encodeTooltip(tooltipSource);
+    if (tooltipResult?.text) {
+      anchor.title = tooltipResult.text;
+    }
+
+    for (const titledElement of [imageEl, ...Array.from(imageEl.querySelectorAll('[title]'))]) {
+      titledElement.removeAttribute('title');
     }
 
     // Accessibility: explicit role and keyboard focus (mirrors applyLinkAttributes for text links)
