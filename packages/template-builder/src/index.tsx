@@ -2,7 +2,13 @@ import { useRef, useState, useEffect, useCallback, useMemo, forwardRef, useImper
 import type { SuperDoc } from 'superdoc'; // requires superdoc >=1.24.2 for correct types
 import type * as Types from './types';
 import { FieldMenu, FieldList } from './defaults';
-import { areTemplateFieldsEqual, resolveToolbar, clampToViewport, getPresentationEditor } from './utils';
+import {
+  areTemplateFieldsEqual,
+  resolveToolbar,
+  clampToViewport,
+  getPresentationEditor,
+  generateFieldColorCSS,
+} from './utils';
 
 export * from './types';
 export { FieldMenu, FieldList };
@@ -53,6 +59,7 @@ const SuperDocTemplateBuilder = forwardRef<Types.SuperDocTemplateBuilderHandle, 
       list = {},
       toolbar,
       defaultLockMode,
+      fieldColors,
       cspNonce,
       telemetry,
       licenseKey,
@@ -100,6 +107,26 @@ const SuperDocTemplateBuilder = forwardRef<Types.SuperDocTemplateBuilderHandle, 
       }),
       [telemetry?.enabled, JSON.stringify(telemetry?.metadata)],
     );
+
+    const fieldColorCSS = useMemo(() => {
+      if (!fieldColors) return '';
+      return generateFieldColorCSS(fieldColors, '.superdoc-template-builder');
+    }, [fieldColors]);
+
+    // Inject scoped field-color CSS when fieldColors is provided
+    useEffect(() => {
+      if (!fieldColorCSS) return;
+
+      const style = window.document.createElement('style');
+      style.setAttribute('data-superdoc-field-colors', '');
+      if (cspNonce) style.nonce = cspNonce;
+      style.textContent = fieldColorCSS;
+      window.document.head.appendChild(style);
+
+      return () => {
+        style.remove();
+      };
+    }, [fieldColorCSS, cspNonce]);
 
     const computeFilteredFields = useCallback(
       (query: string) => {
@@ -629,6 +656,7 @@ const SuperDocTemplateBuilder = forwardRef<Types.SuperDocTemplateBuilderHandle, 
                 onDelete={deleteField}
                 onUpdate={(field) => updateField(field.id, field)}
                 selectedFieldId={selectedFieldId || undefined}
+                fieldColors={fieldColors}
               />
             </div>
           )}
@@ -657,6 +685,7 @@ const SuperDocTemplateBuilder = forwardRef<Types.SuperDocTemplateBuilderHandle, 
                 onDelete={deleteField}
                 onUpdate={(field) => updateField(field.id, field)}
                 selectedFieldId={selectedFieldId || undefined}
+                fieldColors={fieldColors}
               />
             </div>
           )}
@@ -674,6 +703,7 @@ const SuperDocTemplateBuilder = forwardRef<Types.SuperDocTemplateBuilderHandle, 
           onCreateField={onFieldCreate}
           existingFields={templateFields}
           onSelectExisting={handleSelectExisting}
+          fieldColors={fieldColors}
         />
       </div>
     );
