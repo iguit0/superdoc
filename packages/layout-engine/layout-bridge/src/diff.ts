@@ -236,7 +236,7 @@ const paragraphBorderEqual = (a?: ParagraphBorder, b?: ParagraphBorder): boolean
 };
 
 /**
- * Compares paragraph borders (all four sides) for equality.
+ * Compares paragraph borders for equality.
  * Borders affect the visual box around the paragraph.
  */
 const paragraphBordersEqual = (a?: ParagraphBorders, b?: ParagraphBorders): boolean => {
@@ -246,7 +246,8 @@ const paragraphBordersEqual = (a?: ParagraphBorders, b?: ParagraphBorders): bool
     paragraphBorderEqual(a.top, b.top) &&
     paragraphBorderEqual(a.right, b.right) &&
     paragraphBorderEqual(a.bottom, b.bottom) &&
-    paragraphBorderEqual(a.left, b.left)
+    paragraphBorderEqual(a.left, b.left) &&
+    paragraphBorderEqual(a.bar, b.bar)
   );
 };
 

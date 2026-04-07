@@ -400,21 +400,23 @@ describe('hashCellBorders', () => {
 });
 
 describe('hashParagraphBorders', () => {
-  it('includes between border in hash with bw: prefix', () => {
+  it('includes bar and between borders in hash', () => {
     const borders: ParagraphBorders = {
       top: { style: 'solid', width: 1, color: '#000' },
+      bar: { style: 'double', width: 3, color: '#00FF00' },
       between: { style: 'solid', width: 2, color: '#FF0000' },
     };
     const hash = hashParagraphBorders(borders);
     expect(hash).toContain('t:[');
+    expect(hash).toContain('bar:[');
     expect(hash).toContain('bw:[');
-    expect(hash).toContain('w:2');
+    expect(hash).toContain('w:3');
   });
 
-  it('produces different hashes with and without between', () => {
+  it('produces different hashes with and without bar', () => {
     const with_: ParagraphBorders = {
       top: { style: 'solid', width: 1 },
-      between: { style: 'solid', width: 1 },
+      bar: { style: 'solid', width: 1 },
     };
     const without_: ParagraphBorders = {
       top: { style: 'solid', width: 1 },
@@ -422,48 +424,54 @@ describe('hashParagraphBorders', () => {
     expect(hashParagraphBorders(with_)).not.toBe(hashParagraphBorders(without_));
   });
 
-  it('does not include bw: when between is undefined', () => {
+  it('does not include bar: or bw: when bar and between are undefined', () => {
     const borders: ParagraphBorders = {
       top: { style: 'solid', width: 1 },
       bottom: { style: 'solid', width: 1 },
     };
-    expect(hashParagraphBorders(borders)).not.toContain('bw:');
+    const hash = hashParagraphBorders(borders);
+    expect(hash).not.toContain('bar:');
+    expect(hash).not.toContain('bw:');
   });
 
-  it('places bw: after l: in hash output', () => {
+  it('places bar: after l: and before bw: in hash output', () => {
     const borders: ParagraphBorders = {
       left: { style: 'solid', width: 1 },
+      bar: { style: 'solid', width: 2 },
       between: { style: 'solid', width: 1 },
     };
     const hash = hashParagraphBorders(borders);
-    expect(hash.indexOf('l:[')).toBeLessThan(hash.indexOf('bw:['));
+    expect(hash.indexOf('l:[')).toBeLessThan(hash.indexOf('bar:['));
+    expect(hash.indexOf('bar:[')).toBeLessThan(hash.indexOf('bw:['));
   });
 });
 
 describe('hashParagraphAttrs', () => {
-  it('includes between border in attrs hash via borders', () => {
+  it('includes bar border in attrs hash via borders', () => {
     const attrs: ParagraphAttrs = {
       borders: {
         top: { style: 'solid', width: 1 },
+        bar: { style: 'double', width: 2, color: '#0F0' },
         between: { style: 'solid', width: 2, color: '#F00' },
       },
     };
     const hash = hashParagraphAttrs(attrs);
     expect(hash).toContain('br:');
+    expect(hash).toContain('bar:[');
     expect(hash).toContain('bw:[');
   });
 
-  it('produces different hashes when between border changes', () => {
+  it('produces different hashes when bar border changes', () => {
     const attrs1: ParagraphAttrs = {
       borders: {
         top: { style: 'solid', width: 1 },
-        between: { style: 'solid', width: 1 },
+        bar: { style: 'solid', width: 1 },
       },
     };
     const attrs2: ParagraphAttrs = {
       borders: {
         top: { style: 'solid', width: 1 },
-        between: { style: 'dashed', width: 2 },
+        bar: { style: 'dashed', width: 2 },
       },
     };
     expect(hashParagraphAttrs(attrs1)).not.toBe(hashParagraphAttrs(attrs2));

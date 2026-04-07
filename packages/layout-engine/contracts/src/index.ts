@@ -1160,6 +1160,7 @@ export type ParagraphBorders = {
   right?: ParagraphBorder;
   bottom?: ParagraphBorder;
   left?: ParagraphBorder;
+  bar?: ParagraphBorder;
   between?: ParagraphBorder;
 };
 

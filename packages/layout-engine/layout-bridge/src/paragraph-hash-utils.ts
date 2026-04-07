@@ -27,7 +27,7 @@ export const hashParagraphBorder = (border: ParagraphBorder): string => {
 
 /**
  * Creates a deterministic hash string for paragraph borders.
- * Hashes all four sides (top, right, bottom, left) in a consistent order.
+ * Hashes paragraph border sides (top, right, bottom, left, bar, between) in a consistent order.
  *
  * @param borders - The paragraph borders to hash
  * @returns A deterministic hash string
@@ -38,6 +38,7 @@ export const hashParagraphBorders = (borders: ParagraphBorders): string => {
   if (borders.right) parts.push(`r:[${hashParagraphBorder(borders.right)}]`);
   if (borders.bottom) parts.push(`b:[${hashParagraphBorder(borders.bottom)}]`);
   if (borders.left) parts.push(`l:[${hashParagraphBorder(borders.left)}]`);
+  if (borders.bar) parts.push(`bar:[${hashParagraphBorder(borders.bar)}]`);
   if (borders.between) parts.push(`bw:[${hashParagraphBorder(borders.between)}]`);
   return parts.join(';');
 };

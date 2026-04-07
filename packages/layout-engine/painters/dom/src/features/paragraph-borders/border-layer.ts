@@ -6,6 +6,7 @@
  *
  * @ooxml w:pPr/w:pBdr — paragraph border properties
  * @ooxml w:pPr/w:pBdr/w:top, w:bottom, w:left, w:right — side borders
+ * @ooxml w:pPr/w:pBdr/w:bar — bar border (rendered as a separate left-side rule)
  * @ooxml w:pPr/w:pBdr/w:between — between border (rendered as bottom within groups)
  * @ooxml w:pPr/w:shd — paragraph shading (background fill)
  * @spec  ECMA-376 §17.3.1.24 (pBdr), §17.3.1.31 (shd)
@@ -182,6 +183,93 @@ const computeRenderedBorderWidths = (
 
 type CssBorderSide = 'top' | 'right' | 'bottom' | 'left';
 const BORDER_SIDES: CssBorderSide[] = ['top', 'right', 'bottom', 'left'];
+const PARAGRAPH_BAR_CLASS = 'superdoc-paragraph-bar';
+
+type ResolvedParagraphBorder = {
+  style: 'none' | 'solid' | 'dashed' | 'dotted' | 'double';
+  width: number;
+  color: string;
+};
+
+const resolveParagraphBorder = (border: ParagraphBorder): ResolvedParagraphBorder => {
+  const style = border.style && border.style !== 'none' ? border.style : border.style === 'none' ? 'none' : 'solid';
+
+  if (style === 'none') {
+    return {
+      style,
+      width: 0,
+      color: border.color ?? '#000',
+    };
+  }
+
+  return {
+    style,
+    width: border.width != null ? Math.max(0, border.width) : 1,
+    color: border.color ?? '#000',
+  };
+};
+
+const getRenderedParagraphBorderWidth = (border?: ParagraphBorder): number => {
+  if (!border) return 0;
+  const resolved = resolveParagraphBorder(border);
+  if (resolved.style === 'none') return 0;
+  return resolved.width;
+};
+
+const getParagraphBarElement = (element: HTMLElement): HTMLElement | undefined => {
+  return Array.from(element.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains(PARAGRAPH_BAR_CLASS),
+  );
+};
+
+const syncParagraphBarElement = (
+  element: HTMLElement,
+  barBorder?: ParagraphBorder,
+  leftBorder?: ParagraphBorder,
+): void => {
+  const existingBarElement = getParagraphBarElement(element);
+  if (!barBorder) {
+    existingBarElement?.remove();
+    return;
+  }
+
+  const resolvedBar = resolveParagraphBorder(barBorder);
+  if (resolvedBar.style === 'none' || resolvedBar.width <= 0) {
+    existingBarElement?.remove();
+    return;
+  }
+
+  const computedPosition = element.ownerDocument.defaultView?.getComputedStyle(element).position;
+  if (!element.style.position && (!computedPosition || computedPosition === 'static')) {
+    element.style.position = 'relative';
+  }
+
+  const barElement = existingBarElement ?? element.ownerDocument.createElement('div');
+  if (!existingBarElement) {
+    barElement.classList.add(PARAGRAPH_BAR_CLASS);
+    element.appendChild(barElement);
+  }
+
+  const barSpace = Math.max(0, barBorder.space ?? 0) * PX_PER_PT;
+  const renderedLeftBorderWidth = getRenderedParagraphBorderWidth(leftBorder);
+
+  barElement.style.position = 'absolute';
+  barElement.style.pointerEvents = 'none';
+  barElement.style.boxSizing = 'border-box';
+  barElement.style.top = '0px';
+  barElement.style.bottom = '0px';
+  barElement.style.left = `-${renderedLeftBorderWidth + barSpace}px`;
+  barElement.style.width = '0px';
+  barElement.style.borderLeftStyle = resolvedBar.style;
+  barElement.style.borderLeftWidth = `${resolvedBar.width}px`;
+  barElement.style.borderLeftColor = resolvedBar.color;
+};
+
+const clearBorderSideStyle = (element: HTMLElement, side: CssBorderSide): void => {
+  element.style.removeProperty(`border-${side}-style`);
+  element.style.removeProperty(`border-${side}-width`);
+  element.style.removeProperty(`border-${side}-color`);
+};
 
 /**
  * Applies paragraph border styles to an HTML element.
@@ -195,7 +283,14 @@ export const applyParagraphBorderStyles = (
   borders?: ParagraphAttrs['borders'],
   betweenInfo?: BetweenBorderInfo,
 ): void => {
-  if (!borders) return;
+  BORDER_SIDES.forEach((side) => {
+    clearBorderSideStyle(element, side);
+  });
+
+  if (!borders) {
+    syncParagraphBarElement(element);
+    return;
+  }
   const showBetweenBorder = betweenInfo?.showBetweenBorder ?? false;
   const suppressTopBorder = betweenInfo?.suppressTopBorder ?? false;
   const suppressBottomBorder = betweenInfo?.suppressBottomBorder ?? false;
@@ -214,12 +309,13 @@ export const applyParagraphBorderStyles = (
   if (showBetweenBorder && borders.between) {
     setBorderSideStyle(element, 'bottom', borders.between);
   }
+
+  syncParagraphBarElement(element, borders.bar, borders.left);
 };
 
 const setBorderSideStyle = (element: HTMLElement, side: CssBorderSide, border: ParagraphBorder): void => {
-  const resolvedStyle =
-    border.style && border.style !== 'none' ? border.style : border.style === 'none' ? 'none' : 'solid';
-  if (resolvedStyle === 'none') {
+  const resolved = resolveParagraphBorder(border);
+  if (resolved.style === 'none') {
     element.style.setProperty(`border-${side}-style`, 'none');
     element.style.setProperty(`border-${side}-width`, '0px');
     if (border.color) {
@@ -228,10 +324,9 @@ const setBorderSideStyle = (element: HTMLElement, side: CssBorderSide, border: P
     return;
   }
 
-  const width = border.width != null ? Math.max(0, border.width) : undefined;
-  element.style.setProperty(`border-${side}-style`, resolvedStyle);
-  element.style.setProperty(`border-${side}-width`, `${width ?? 1}px`);
-  element.style.setProperty(`border-${side}-color`, border.color ?? '#000');
+  element.style.setProperty(`border-${side}-style`, resolved.style);
+  element.style.setProperty(`border-${side}-width`, `${resolved.width}px`);
+  element.style.setProperty(`border-${side}-color`, resolved.color);
 };
 
 // ─── Dataset stamping ─────────────────────────────────────────────

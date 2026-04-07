@@ -176,7 +176,7 @@ const hashBorders = (borders?: ParagraphBorders): string | undefined => {
   if (!borders) return undefined;
   const side = (b?: { style?: string; width?: number; color?: string; space?: number }) =>
     b ? `${b.style ?? ''},${b.width ?? 0},${b.color ?? ''},${b.space ?? 0}` : '';
-  return `${side(borders.top)}|${side(borders.right)}|${side(borders.bottom)}|${side(borders.left)}|${side(borders.between)}`;
+  return `${side(borders.top)}|${side(borders.right)}|${side(borders.bottom)}|${side(borders.left)}|${side(borders.bar)}|${side(borders.between)}`;
 };
 
 /**

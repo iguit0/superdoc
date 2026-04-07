@@ -497,18 +497,25 @@ describe('extractCellPadding', () => {
 
 describe('normalizeParagraphBorders', () => {
   describe('valid paragraph borders', () => {
-    it('should normalize all four border sides', () => {
+    it('should normalize paragraph border sides including bar', () => {
       const input = {
         top: { val: 'single', size: 1, color: 'FF0000' },
         right: { val: 'double', size: 2, color: '00FF00' },
         bottom: { val: 'dashed', size: 3, color: '0000FF' },
         left: { val: 'dotted', size: 4, color: 'FFFF00' },
+        bar: { val: 'single', size: 5, color: 'FF00FF', space: 2 },
       };
       const result = normalizeParagraphBorders(input);
       expect(result?.top).toBeDefined();
       expect(result?.right).toBeDefined();
       expect(result?.bottom).toBeDefined();
       expect(result?.left).toBeDefined();
+      expect(result?.bar).toEqual({
+        style: 'solid',
+        width: (5 / 8) * (96 / 72),
+        color: '#FF00FF',
+        space: 2,
+      });
     });
 
     it('should normalize partial borders', () => {
@@ -578,6 +585,17 @@ describe('normalizeParagraphBorders', () => {
       };
       const result = normalizeParagraphBorders(input);
       expect(result).toBeDefined();
+      expect(result?.between).toEqual({ style: 'none' });
+    });
+
+    it('should drop bar none/nil borders while keeping between none semantics isolated', () => {
+      const input = {
+        bar: { val: 'none' },
+        between: { val: 'none' },
+      };
+      const result = normalizeParagraphBorders(input);
+      expect(result).toBeDefined();
+      expect(result?.bar).toBeUndefined();
       expect(result?.between).toEqual({ style: 'none' });
     });
   });

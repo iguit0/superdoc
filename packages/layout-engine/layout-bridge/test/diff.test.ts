@@ -360,6 +360,13 @@ describe('computeDirtyRegions', () => {
         expect(result.firstDirtyIndex).toBe(0);
       });
 
+      it('detects bar border change', () => {
+        const prev = [paragraphWithAttrs('p1', 'Hello', { borders: { bar: { style: 'solid', width: 1 } } })];
+        const next = [paragraphWithAttrs('p1', 'Hello', { borders: { bar: { style: 'double', width: 2 } } })];
+        const result = computeDirtyRegions(prev, next);
+        expect(result.firstDirtyIndex).toBe(0);
+      });
+
       it('treats identical borders as stable', () => {
         const prev = [
           paragraphWithAttrs('p1', 'Hello', { borders: { top: { style: 'solid', width: 1, color: '#000' } } }),

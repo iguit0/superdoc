@@ -202,6 +202,39 @@ describe('applyParagraphBorderStyles — between borders', () => {
     expect(e.style.getPropertyValue('border-bottom-width')).toBe('2px');
   });
 
+  it('renders bar as a dedicated child element without mutating the parent left border', () => {
+    const e = el();
+    applyParagraphBorderStyles(e, { bar: { style: 'double', width: 2, color: '#F00' } }, betweenOff);
+    const bar = e.querySelector('.superdoc-paragraph-bar') as HTMLElement | null;
+
+    expect(e.style.getPropertyValue('border-left-style')).toBe('');
+    expect(bar).not.toBeNull();
+    expect(bar?.style.left).toBe('0px');
+    expect(bar?.style.pointerEvents).toBe('none');
+    expect(bar?.style.borderLeftStyle).toBe('double');
+    expect(bar?.style.borderLeftWidth).toBe('2px');
+    expect(bar?.style.borderLeftColor).toBe('#F00');
+  });
+
+  it('keeps left border rendering and offsets bar outside it with bar spacing', () => {
+    const e = el();
+    applyParagraphBorderStyles(
+      e,
+      {
+        left: { style: 'solid', width: 4, color: '#000' },
+        bar: { style: 'solid', width: 2, color: '#F00', space: 3 },
+      },
+      betweenOff,
+    );
+    const bar = e.querySelector('.superdoc-paragraph-bar') as HTMLElement | null;
+
+    expect(e.style.getPropertyValue('border-left-style')).toBe('solid');
+    expect(e.style.getPropertyValue('border-left-width')).toBe('4px');
+    expect(bar).not.toBeNull();
+    expect(bar?.style.left).toBe('-8px');
+    expect(bar?.style.borderLeftWidth).toBe('2px');
+  });
+
   // --- partial / degenerate border specs ---
   it('handles between border with none style', () => {
     const e = el();
@@ -686,6 +719,25 @@ describe('computeBetweenBorderFlags', () => {
     const fragments: Fragment[] = [paraFragment('b1'), paraFragment('b2')];
 
     // Full border hash differs (top is different), so not same border group
+    expect(computeBetweenBorderFlags(fragments, lookup).size).toBe(0);
+  });
+
+  it('does not flag when only bar differs (different group)', () => {
+    const borders1: ParagraphBorders = {
+      top: { style: 'solid', width: 1, color: '#000' },
+      bar: { style: 'solid', width: 2, color: '#0F0' },
+      between: { style: 'solid', width: 1, color: '#000' },
+    };
+    const borders2: ParagraphBorders = {
+      top: { style: 'solid', width: 1, color: '#000' },
+      bar: { style: 'double', width: 3, color: '#F00' },
+      between: { style: 'solid', width: 1, color: '#000' },
+    };
+    const b1 = makeParagraphBlock('b1', borders1);
+    const b2 = makeParagraphBlock('b2', borders2);
+    const lookup = buildLookup([{ block: b1 }, { block: b2 }]);
+    const fragments: Fragment[] = [paraFragment('b1'), paraFragment('b2')];
+
     expect(computeBetweenBorderFlags(fragments, lookup).size).toBe(0);
   });
 

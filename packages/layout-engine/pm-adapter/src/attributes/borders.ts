@@ -306,7 +306,7 @@ export function extractCellPadding(cellAttrs: Record<string, unknown>): BoxSpaci
 /**
  * Normalizes paragraph borders from raw OOXML attributes.
  *
- * Processes border specifications for all four sides (top, right, bottom, left)
+ * Processes border specifications for paragraph sides (top, right, bottom, left, bar, between)
  * and converts them to the layout engine's paragraph border format.
  *
  * @param value - Raw OOXML borders object with properties for each side
@@ -324,7 +324,14 @@ export function extractCellPadding(cellAttrs: Record<string, unknown>): BoxSpaci
 export const normalizeParagraphBorders = (value: unknown): ParagraphAttrs['borders'] | undefined => {
   if (!value || typeof value !== 'object') return undefined;
   const source = value as Record<string, unknown>;
-  const sides: Array<'top' | 'right' | 'bottom' | 'left' | 'between'> = ['top', 'right', 'bottom', 'left', 'between'];
+  const sides: Array<'top' | 'right' | 'bottom' | 'left' | 'bar' | 'between'> = [
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'bar',
+    'between',
+  ];
   const borders: ParagraphAttrs['borders'] = {};
 
   sides.forEach((side) => {
