@@ -12,6 +12,11 @@ import type {
  * Hash helpers are duplicated from layout-bridge to avoid a circular dependency
  * (layout-bridge imports DOM_CLASS_NAMES from painter-dom). Keep these helpers
  * in sync with layout-bridge when formatting changes need cache invalidation.
+ *
+ * Exception: `hashParagraphBorders` intentionally excludes `bar` here because
+ * this copy is used for between-border *grouping* (group-analysis.ts), and
+ * Word / Google Docs both ignore bar when deciding whether paragraphs form a
+ * group. The layout-bridge copy includes `bar` for cache-invalidation purposes.
  */
 
 export const hashParagraphBorder = (border: ParagraphBorder): string => {
@@ -29,7 +34,7 @@ export const hashParagraphBorders = (borders: ParagraphBorders): string => {
   if (borders.right) parts.push(`r:[${hashParagraphBorder(borders.right)}]`);
   if (borders.bottom) parts.push(`b:[${hashParagraphBorder(borders.bottom)}]`);
   if (borders.left) parts.push(`l:[${hashParagraphBorder(borders.left)}]`);
-  if (borders.bar) parts.push(`bar:[${hashParagraphBorder(borders.bar)}]`);
+  // `bar` intentionally excluded — Word/Google Docs ignore it for grouping.
   if (borders.between) parts.push(`bw:[${hashParagraphBorder(borders.between)}]`);
   return parts.join(';');
 };

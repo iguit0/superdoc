@@ -26,7 +26,6 @@ const betweenOff: BetweenBorderInfo = {
 import { createDomPainter } from './index.js';
 import type {
   ParagraphBorders,
-  ParagraphBorder,
   ParagraphBlock,
   ListBlock,
   Fragment,
@@ -738,7 +737,9 @@ describe('computeBetweenBorderFlags', () => {
     const lookup = buildLookup([{ block: b1 }, { block: b2 }]);
     const fragments: Fragment[] = [paraFragment('b1'), paraFragment('b2')];
 
-    expect(computeBetweenBorderFlags(fragments, lookup).size).toBe(0);
+    const flags = computeBetweenBorderFlags(fragments, lookup);
+    expect(flags.has(0)).toBe(true);
+    expect(flags.get(0)?.showBetweenBorder).toBe(true);
   });
 
   // --- edge: last fragment on page ---

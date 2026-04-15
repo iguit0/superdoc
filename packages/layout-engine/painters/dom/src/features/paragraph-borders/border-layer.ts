@@ -217,9 +217,7 @@ const getRenderedParagraphBorderWidth = (border?: ParagraphBorder): number => {
 };
 
 const getParagraphBarElement = (element: HTMLElement): HTMLElement | undefined => {
-  return Array.from(element.children).find(
-    (child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains(PARAGRAPH_BAR_CLASS),
-  );
+  return element.querySelector<HTMLElement>(`.${PARAGRAPH_BAR_CLASS}`) ?? undefined;
 };
 
 const syncParagraphBarElement = (
@@ -260,9 +258,7 @@ const syncParagraphBarElement = (
   barElement.style.bottom = '0px';
   barElement.style.left = `-${renderedLeftBorderWidth + barSpace}px`;
   barElement.style.width = '0px';
-  barElement.style.borderLeftStyle = resolvedBar.style;
-  barElement.style.borderLeftWidth = `${resolvedBar.width}px`;
-  barElement.style.borderLeftColor = resolvedBar.color;
+  setBorderSideStyle(barElement, 'left', barBorder);
 };
 
 const clearBorderSideStyle = (element: HTMLElement, side: CssBorderSide): void => {
